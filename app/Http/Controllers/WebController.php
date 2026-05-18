@@ -901,15 +901,16 @@ class WebController extends Controller
             if ($contractId === null) {
                 return false;
             }
-            return true;
-        });
-
-        // Personal: solo contar cuando la cuota está pagada (paid=1). Grupo: cuando TODOS pagaron esa cuota (del 100%)
-        $onlyCompleteGroupPayments = function ($payment) {
-            $quota = $payment->quota;
-            return $quota && $quota->paid == 1;
+            if (!in_array($contractId, $groupContractIds, true)) {
+                return $quota->paid == 1;
+            }
+            $contract = $quota->contract;
+            $groupName = $contract ? $contract->group_name : null;
+            $key = ($groupName ?: $contractId) . '_' . ($quota->number ?? 'none');
+            return $groupQuotasCache->get($key, false);
         };
 
+        // Personal: solo contar cuando la cuota está pagada (paid=1). Grupo: cuando TODOS pagaron esa cuota (del 100%)
         $advanceTimelyContractIds = $advanceTimelyPayments
             ->map(fn($payment) => optional($payment->quota)->contract_id)
             ->filter()
