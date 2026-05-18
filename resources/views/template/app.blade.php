@@ -81,7 +81,12 @@
                                     </div>
                                     <div class="dropdown-menu-column">
                                         <a class="dropdown-item" href="{{ route('dashboard.productividad') }}">
-                                            Productividad  
+                                            Productividad
+                                        </a>
+                                    </div>
+                                    <div class="dropdown-menu-column">
+                                        <a class="dropdown-item" href="{{ route('dashboard.cartera_asesor') }}">
+                                            Cartera por asesor
                                         </a>
                                     </div>
                                 </div>
@@ -187,33 +192,33 @@
                             </li>
                         @else
                             @if (!auth()->user()->hasRole('seller'))
-                            <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown"
-                                    data-bs-auto-close="false" role="button" aria-expanded="true">
-                                    <span class="nav-link-icon d-md-none d-lg-inline-block">
-                                        <i class="ti ti-cash icon"></i>
-                                    </span>
-                                    <span class="nav-link-title">
-                                        Egresos
-                                    </span>
-                                </a>
-                                <div class="dropdown-menu">
-                                    <div class="dropdown-menu-columns">
-                                        <div class="dropdown-menu-column">
-                                            <a class="dropdown-item" href="{{ route('expenses.index') }}">
-                                                Prestamos
-                                            </a>
+                                <li class="nav-item dropdown">
+                                    <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown"
+                                        data-bs-auto-close="false" role="button" aria-expanded="true">
+                                        <span class="nav-link-icon d-md-none d-lg-inline-block">
+                                            <i class="ti ti-cash icon"></i>
+                                        </span>
+                                        <span class="nav-link-title">
+                                            Egresos
+                                        </span>
+                                    </a>
+                                    <div class="dropdown-menu">
+                                        <div class="dropdown-menu-columns">
+                                            <div class="dropdown-menu-column">
+                                                <a class="dropdown-item" href="{{ route('expenses.index') }}">
+                                                    Prestamos
+                                                </a>
+                                            </div>
+                                            @if (auth()->user()->hasRole('admin'))
+                                                <div class="dropdown-menu-column">
+                                                    <a class="dropdown-item" href="{{ route('expenses.index_cash') }}">
+                                                        Caja
+                                                    </a>
+                                                </div>
+                                            @endif
                                         </div>
-                                        @if (auth()->user()->hasRole('admin'))
-                                        <div class="dropdown-menu-column">
-                                            <a class="dropdown-item" href="{{ route('expenses.index_cash') }}">
-                                                Caja
-                                            </a>
-                                        </div>
-                                        @endif
                                     </div>
-                                </div>
-                            </li>
+                                </li>
                             @endif
                         @endif
                         @if (auth()->user()->hasRole('admin'))
@@ -254,9 +259,8 @@
         </aside>
         <header class="navbar navbar-expand-md d-none d-lg-flex d-print-none">
             <div class="container-xl">
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
-                    data-bs-target="#navbar-menu" aria-controls="navbar-menu" aria-expanded="false"
-                    aria-label="Toggle navigation">
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar-menu"
+                    aria-controls="navbar-menu" aria-expanded="false" aria-label="Toggle navigation">
                     <span class="navbar-toggler-icon"></span>
                 </button>
                 <div class="navbar-nav flex-row order-md-last">

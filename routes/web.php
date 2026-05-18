@@ -36,6 +36,7 @@ Route::middleware('auth')->group(function () {
 	Route::get('/dashboard/rentabilidad', [WebController::class, 'rentabilidad'])->name('dashboard.rentabilidad');
 	Route::get('/dashboard/rentabilidad/card-details', [WebController::class, 'rentabilidadCardDetails'])->name('dashboard.rentabilidad.card-details');
 	Route::get('/dashboard/indicadores', [WebController::class, 'indicadores'])->name('dashboard.indicadores');
+	Route::get('/dashboard/cartera_asesor', [WebController::class, 'carteraAsesor'])->name('dashboard.cartera_asesor');
 
 
 	Route::get('api/reniec', [WebController::class, 'apiReniec'])->name('api.reniec');

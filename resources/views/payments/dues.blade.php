@@ -75,6 +75,7 @@
                     <tr>
                         <th>Cliente</th>
                         <th>Numero de cuota</th>
+                        <th>Número de pagaré</th>
                         <th>Monto Total</th>
                         <th>Saldo Total</th>
                         <th>Fecha de pago (Ref.)</th>
@@ -85,7 +86,8 @@
                 <tbody>
                     @php
                         $refDate = isset($referenceDate) ? $referenceDate : now();
-                        $groupedQuotas = $quotas->groupBy('number')->sortKeys();
+                        // Agrupar por contrato + cuota para no mezclar cuotas con el mismo número de contratos distintos
+                        $groupedQuotas = $quotas->groupBy(fn($q) => $q->contract_id . '_' . $q->number);
                     @endphp
 
                     @if ($groupedQuotas->count() > 0)
@@ -111,10 +113,11 @@
 
                                 $detailsHtml = str_replace('"', '&quot;', $detailsHtml);
                             @endphp
-
+    
                             <tr>
                                 <td>{{ optional($firstQuota->contract)->client() }}</td>
-                                <td>{{ $quotaNumber }}</td>
+                                <td>{{ $firstQuota->number }}</td>
+                                <td>{{ $firstQuota->contract_number_pagare ?? optional($firstQuota->contract)->number_pagare }}</td>
                                 <td>{{ number_format($totalAmount, 2) }}</td>
                                 <td>{{ number_format($totalDebt, 2) }}</td>
                                 <td>{{ $firstQuota->date->format('d/m/Y') }}</td>

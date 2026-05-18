@@ -399,6 +399,7 @@
                             <td>${escapeHtml(item.client)}</td>
                             <td>${escapeHtml(item.quota_number || '')}</td>
                             <td>S/${parseFloat(item.amount || 0).toFixed(2)}</td>
+                            <td>S/${parseFloat(item.quota_amount || 0).toFixed(2)}</td>
                             <td>${escapeHtml(item.payment_method || '')}</td>
                             <td>${escapeHtml(item.quota_date || '')}</td>
                             <td>${escapeHtml(item.payment_date || '')}</td>
@@ -408,14 +409,15 @@
                 }).join('');
 
                 if (!rows) {
-                    rows = '<tr><td colspan="7" class="text-center">No se encontraron pagos</td></tr>';
+                    rows = '<tr><td colspan="8" class="text-center">No se encontraron pagos</td></tr>';
                 }
 
                 $('#rentabilidadCardTableHead').html(`
                     <tr>
                         <th>Cliente</th>
                         <th>Cuota</th>
-                        <th>Monto</th>
+                        <th>Monto Pagado</th>
+                        <th>Monto Total Cuota</th>
                         <th>Método</th>
                         <th>Fecha cuota</th>
                         <th>Fecha pago</th>

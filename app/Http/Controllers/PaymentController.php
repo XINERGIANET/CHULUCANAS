@@ -79,16 +79,16 @@ class PaymentController extends Controller
 
         // Obtener todos los pagos con relaciones
         $allPayments = $paymentsQuery->with(['quota.contract', 'payment_method'])->get();
-        
+
         // Agrupar pagos por contrato + número de cuota + fecha
-        $groupedByContractQuotaDate = $allPayments->groupBy(function($payment) {
+        $groupedByContractQuotaDate = $allPayments->groupBy(function ($payment) {
             $contractId = optional(optional($payment->quota)->contract)->id ?? 'none';
             $quotaNumber = optional($payment->quota)->number ?? 'none';
             $dateKey = $payment->date->format('Y-m-d');
-            
+
             return $contractId . '_' . $quotaNumber . '_' . $dateKey;
         });
-        
+
         // Procesar grupos
         $grouped = [];
         foreach ($groupedByContractQuotaDate as $key => $paymentsGroup) {
@@ -96,37 +96,39 @@ class PaymentController extends Controller
             $firstPayment = $paymentsGroup->first();
             $contract = optional(optional($firstPayment->quota)->contract);
             $isGroupContract = $contract && $contract->client_type == 'Grupo';
-            
+
             // Solo agrupar si es contrato grupal Y hay múltiples pagos
             if ($isGroupContract && $paymentsGroup->count() > 1) {
                 // Separar pagos según su formato
                 $completeFormatGroups = collect();
                 $paymentsToGroup = collect();
-                
+
                 foreach ($paymentsGroup as $payment) {
                     $hasCompleteFormat = false;
-                    
+
                     if (!empty($payment->people)) {
                         $peopleData = json_decode($payment->people, true);
                         if (is_array($peopleData) && count($peopleData) > 0) {
                             // Verificar si tiene el formato completo (document, name, address)
-                            if (isset($peopleData[0]['document']) && 
-                                isset($peopleData[0]['name']) && 
-                                isset($peopleData[0]['address'])) {
+                            if (
+                                isset($peopleData[0]['document']) &&
+                                isset($peopleData[0]['name']) &&
+                                isset($peopleData[0]['address'])
+                            ) {
                                 $hasCompleteFormat = true;
                             }
                         }
                     }
-                    
+
                     if ($hasCompleteFormat) {
                         // Agrupar por hash de people + imagen para formato completo
                         $peopleData = json_decode($payment->people, true);
-                        usort($peopleData, function($a, $b) {
+                        usort($peopleData, function ($a, $b) {
                             return strcmp($a['document'] ?? '', $b['document'] ?? '');
                         });
                         // Incluir la imagen en el hash para separar pagos con diferentes imágenes
                         $groupKey = md5(serialize($peopleData) . '|' . ($payment->image ?? 'no-image'));
-                        
+
                         if (!isset($completeFormatGroups[$groupKey])) {
                             $completeFormatGroups[$groupKey] = collect();
                         }
@@ -136,18 +138,18 @@ class PaymentController extends Controller
                         $paymentsToGroup->push($payment);
                     }
                 }
-                
+
                 // Procesar grupos con formato completo
                 foreach ($completeFormatGroups as $peopleHash => $groupPayments) {
                     if ($groupPayments->count() > 1) {
                         // Agrupar pagos con mismo people
                         $firstPayment = $groupPayments->first();
                         $totalAmount = $groupPayments->sum('amount');
-                        
-                        $images = $groupPayments->filter(function($p) {
+
+                        $images = $groupPayments->filter(function ($p) {
                             return !empty($p->image);
                         })->pluck('image')->toArray();
-                        
+
                         // Verificar si todos tienen el mismo método de pago
                         $uniqueMethods = $groupPayments->pluck('payment_method.name')->unique();
                         $paymentMethodName = $uniqueMethods->count() === 1 ? $uniqueMethods->first() : 'MIXTO';
@@ -155,20 +157,20 @@ class PaymentController extends Controller
                         if ($paymentMethodName === 'Efectivo') {
                             $paymentMethodName = 'Retanqueo';
                         }
-                        
+
                         $groupedPayment = clone $firstPayment;
                         $groupedPayment->amount = $totalAmount;
                         $groupedPayment->payment_method = (object)['name' => $paymentMethodName];
-                        $groupedPayment->grouped_details = $groupPayments->map(function($p) {
+                        $groupedPayment->grouped_details = $groupPayments->map(function ($p) {
                             // Obtener person_name de la cuota
                             $personName = optional($p->quota)->person_name ?? 'N/A';
-                            
+
                             // Cambiar Efectivo por Retanqueo
                             $methodName = 'N/A';
                             if ($p->payment_method) {
                                 $methodName = $p->payment_method->id == 1 ? 'Retanqueo' : $p->payment_method->name;
                             }
-                            
+
                             return [
                                 'person_name' => $personName,
                                 'method' => $methodName,
@@ -177,7 +179,7 @@ class PaymentController extends Controller
                             ];
                         })->values()->toArray();
                         $groupedPayment->images = $images;
-                        
+
                         $grouped[] = $groupedPayment;
                     } else {
                         // Solo un pago con este people específico
@@ -189,11 +191,11 @@ class PaymentController extends Controller
                 if ($paymentsToGroup->count() > 1) {
                     $firstPayment = $paymentsToGroup->first();
                     $totalAmount = $paymentsToGroup->sum('amount');
-                    
-                    $images = $paymentsToGroup->filter(function($p) {
+
+                    $images = $paymentsToGroup->filter(function ($p) {
                         return !empty($p->image);
                     })->pluck('image')->toArray();
-                    
+
                     // Verificar si todos tienen el mismo método de pago
                     $uniqueMethods = $paymentsToGroup->pluck('payment_method.name')->unique();
                     $paymentMethodName = $uniqueMethods->count() === 1 ? $uniqueMethods->first() : 'MIXTO';
@@ -201,20 +203,20 @@ class PaymentController extends Controller
                     if ($paymentMethodName === 'Efectivo') {
                         $paymentMethodName = 'Retanqueo';
                     }
-                    
+
                     $groupedPayment = clone $firstPayment;
                     $groupedPayment->amount = $totalAmount;
                     $groupedPayment->payment_method = (object)['name' => $paymentMethodName];
-                    $groupedPayment->grouped_details = $paymentsToGroup->map(function($p) {
+                    $groupedPayment->grouped_details = $paymentsToGroup->map(function ($p) {
                         // Obtener person_name de la cuota también para pagos antiguos
                         $personName = optional($p->quota)->person_name ?? 'N/A';
-                        
+
                         // Cambiar Efectivo por Retanqueo
                         $methodName = 'N/A';
                         if ($p->payment_method) {
                             $methodName = $p->payment_method->id == 1 ? 'Retanqueo' : $p->payment_method->name;
                         }
-                        
+
                         return [
                             'person_name' => $personName,
                             'method' => $methodName,
@@ -223,7 +225,7 @@ class PaymentController extends Controller
                         ];
                     })->values()->toArray();
                     $groupedPayment->images = $images;
-                    
+
                     $grouped[] = $groupedPayment;
                 } elseif ($paymentsToGroup->count() == 1) {
                     // Solo un pago sin formato completo
@@ -236,13 +238,13 @@ class PaymentController extends Controller
                 }
             }
         }
-        
+
         // Paginar manualmente
         $perPage = 20;
         $currentPage = $request->get('page', 1);
         $groupedCollection = collect($grouped);
         $pagedData = $groupedCollection->forPage($currentPage, $perPage);
-        
+
         $payments = new \Illuminate\Pagination\LengthAwarePaginator(
             $pagedData,
             $groupedCollection->count(),
@@ -255,8 +257,7 @@ class PaymentController extends Controller
             $payment_methods = PaymentMethod::active()->where('name', 'Efectivo')->get();
         } elseif (auth()->user()->hasRole('seller')) {
             $payment_methods = PaymentMethod::active()->where('name', '!=', 'Efectivo')->get();
-        }
-        else  {
+        } else {
             $payment_methods = PaymentMethod::active()->get();
         }
 
@@ -274,16 +275,14 @@ class PaymentController extends Controller
         return view('payments.index', compact('payments', 'payment_methods', 'sellers', 'credit_managers', 'day', 'hour', 'total'));
     }
 
-    public function charges(Request $request)
+    /**
+     * Consulta base de Gestión de cobranza (lista, total y Excel deben usar la misma lógica).
+     */
+    private function chargesQuotasBaseQuery(Request $request)
     {
         $user = auth()->user();
-        $sellers = User::seller()->active()
-            ->when($user->hasRole('credit_manager'), function ($query) use ($user) {
-                return $query->where('credit_manager_id', $user->id);
-            })
-            ->get();
 
-        $quotas = Quota::active()
+        return Quota::active()
             ->when($user->hasRole('seller'), function ($query) use ($user) {
                 return $query->whereHas('contract', function ($query) use ($user) {
                     return $query->where('seller_id', $user->id);
@@ -297,35 +296,65 @@ class PaymentController extends Controller
             ->when($request->name, function ($query, $name) {
                 return $query->whereHas('contract', function ($query) use ($name) {
                     return $query->where(function ($query) use ($name) {
-                        return $query->where('name', 'like', '%' . $name . '%')->orWhere('group_name', 'like', '%' . $name . '%');
+                        return $query->where('name', 'like', '%' . $name . '%')
+                            ->orWhere('group_name', 'like', '%' . $name . '%');
                     });
                 });
-            })->when($request->seller_id, function ($query, $seller_id) {
+            })
+            ->when($request->seller_id, function ($query, $seller_id) {
                 return $query->whereHas('contract', function ($query) use ($seller_id) {
                     return $query->where('seller_id', $seller_id);
                 });
-            })->when($request->start_date, function ($query, $start_date) {
+            })
+            ->when($request->start_date, function ($query, $start_date) {
                 return $query->whereDate('date', '>=', $start_date);
-            })->when($request->end_date, function ($query, $end_date) {
+            })
+            ->when($request->end_date, function ($query, $end_date) {
                 return $query->whereDate('date', '<=', $end_date);
-            })->where('paid', 0)->orderBy('date')->paginate(20);
-
-        return view('payments.charges', compact('quotas', 'sellers'));
+            })
+            ->when($request->credit_manager_id, function ($query, $credit_manager_id) {
+                return $query->whereHas('contract', function ($query) use ($credit_manager_id) {
+                    return $query->whereHas('seller', function ($query) use ($credit_manager_id) {
+                        return $query->where('credit_manager_id', $credit_manager_id);
+                    });
+                });
+            })
+            ->where('paid', 0);
     }
 
-    public function dues(Request $request)
+    public function charges(Request $request)
     {
         $user = auth()->user();
+        $credit_managers = User::where('role', 'credit_manager')->active()->get();
         $sellers = User::seller()->active()
             ->when($user->hasRole('credit_manager'), function ($query) use ($user) {
                 return $query->where('credit_manager_id', $user->id);
             })
             ->get();
 
-        $date = $request->date ? Carbon::parse($request->date)->toDateString() : now()->toDateString();
-        $referenceDate = Carbon::parse($date);
+        $quotasQuery = $this->chargesQuotasBaseQuery($request);
 
-        $quotas = Quota::active()
+        // Total de saldo pendiente con los mismos filtros (todas las páginas)
+        $total = (clone $quotasQuery)->sum('debt');
+
+        $quotas = $quotasQuery->orderBy('date')->paginate(20);
+
+        return view('payments.charges', compact('quotas', 'sellers', 'credit_managers', 'total'));
+    }
+
+    /**
+     * Consulta base de Gestión de mora (vista, total y Excel usan la misma lógica).
+     * Join con contracts para ordenar por number_pagare; se prefixa columnas ambiguas.
+     */
+    private function duesQuotasBaseQuery(Request $request, string $date = null)
+    {
+        $user  = auth()->user();
+        $date  = $date ?? ($request->date ? Carbon::parse($request->date)->toDateString() : now()->toDateString());
+
+        return Quota::active()
+            ->join('contracts', 'quotas.contract_id', '=', 'contracts.id')
+            ->select('quotas.*', 'contracts.number_pagare as contract_number_pagare')
+            ->with('contract.seller.creditManager')
             ->when($user->hasRole('seller'), function ($query) use ($user) {
                 return $query->whereHas('contract', function ($query) use ($user) {
                     return $query->where('seller_id', $user->id);
@@ -340,15 +369,37 @@ class PaymentController extends Controller
                 return $query->whereHas('contract', function ($query) use ($name) {
                     return $query->where('name', 'like', '%' . $name . '%');
                 });
-            })->when($request->seller_id, function ($query, $seller_id) {
+            })
+            ->when($request->seller_id, function ($query, $seller_id) {
                 return $query->whereHas('contract', function ($query) use ($seller_id) {
                     return $query->where('seller_id', $seller_id);
                 });
-            })->when($request->from_days, function ($query, $from_days) use ($date) {
-                return $query->whereRaw('DATEDIFF(?, date) >= ?', [$date, $from_days]);
-            })->when($request->to_days, function ($query, $to_days) use ($date) {
-                return $query->whereRaw('DATEDIFF(?, date) <= ?', [$date, $to_days]);
-            })->whereDate('date', '<', $date)->where('paid', 0)->paginate(20);
+            })
+            ->when($request->from_days, function ($query, $from_days) use ($date) {
+                return $query->whereRaw('DATEDIFF(?, quotas.date) >= ?', [$date, $from_days]);
+            })
+            ->when($request->to_days, function ($query, $to_days) use ($date) {
+                return $query->whereRaw('DATEDIFF(?, quotas.date) <= ?', [$date, $to_days]);
+            })
+            ->whereDate('quotas.date', '<', $date)
+            ->where('quotas.paid', 0)
+            ->orderBy('contracts.number_pagare')
+            ->orderBy('quotas.number');
+    }
+
+    public function dues(Request $request)
+    {
+        $user = auth()->user();
+        $sellers = User::seller()->active()
+            ->when($user->hasRole('credit_manager'), function ($query) use ($user) {
+                return $query->where('credit_manager_id', $user->id);
+            })
+            ->get();
+
+        $date = $request->date ? Carbon::parse($request->date)->toDateString() : now()->toDateString();
+        $referenceDate = Carbon::parse($date);
+
+        $quotas = $this->duesQuotasBaseQuery($request, $date)->paginate(20);
 
         return view('payments.dues', compact('quotas', 'sellers', 'referenceDate'));
     }
@@ -368,7 +419,7 @@ class PaymentController extends Controller
 
         // Determinar el tipo de pago
         $paymentType = $this->determinePaymentType($request);
-        
+
         if ($paymentType === 'separated_group') {
             return $this->processSeparatedGroupPayment($request);
         } elseif ($paymentType === 'unified_group') {
@@ -384,7 +435,7 @@ class PaymentController extends Controller
         if ($request->has('payments_data')) {
             return 'separated_group';
         }
-        
+
         // Pago de grupo unificado (GRUPO 2)
         if ($request->has('quota_id') && $request->has('people')) {
             $quota = Quota::find($request->quota_id);
@@ -392,7 +443,7 @@ class PaymentController extends Controller
                 return 'unified_group';
             }
         }
-        
+
         // Pago individual
         return 'individual';
     }
@@ -413,7 +464,7 @@ class PaymentController extends Controller
         }
 
         $paymentsData = json_decode($request->payments_data, true);
-        
+
         if (!$paymentsData || count($paymentsData) == 0) {
             return response()->json([
                 'status' => false,
@@ -430,7 +481,7 @@ class PaymentController extends Controller
                     'error' => 'Datos de pago incompletos'
                 ]);
             }
-            
+
             $quota = Quota::find($paymentData['quota_id']);
             if (!$quota) {
                 return response()->json([
@@ -438,14 +489,14 @@ class PaymentController extends Controller
                     'error' => 'Cuota no encontrada'
                 ]);
             }
-            
+
             if ($paymentData['amount'] > $quota->debt) {
                 return response()->json([
                     'status' => false,
                     'error' => "El monto para {$quota->person_name} no puede ser mayor a su deuda"
                 ]);
             }
-            
+
             $totalAmount += $paymentData['amount'];
         }
 
@@ -472,7 +523,7 @@ class PaymentController extends Controller
             foreach ($paymentsData as $paymentData) {
                 $quota = Quota::find($paymentData['quota_id']);
                 $contract = $quota->contract;
-                
+
                 $diff = $payment_date->diffInDays($quota->date, false);
                 $due_days = $diff < 0 ? abs($diff) : 0;
 
@@ -773,7 +824,6 @@ class PaymentController extends Controller
                 DB::commit();
 
                 return response()->json(['status' => true]);
-
             } catch (\Exception $e) {
                 DB::rollBack();
 
@@ -782,7 +832,6 @@ class PaymentController extends Controller
                     'error'  => 'Error al actualizar pagos: ' . $e->getMessage()
                 ]);
             }
-
         } else {
             // Pago individual
             $validator = Validator::make($request->all(), [
@@ -844,7 +893,7 @@ class PaymentController extends Controller
             // Obtener pagos que son exactamente iguales al seleccionado
             // (mismo contrato, número de cuota, fecha, people e imagen)
             $groupedPayments = Payment::where('deleted', 0)
-                ->whereHas('quota', function($query) use ($contract, $quotaNumber) {
+                ->whereHas('quota', function ($query) use ($contract, $quotaNumber) {
                     $query->where('contract_id', $contract->id)
                         ->where('number', $quotaNumber);
                 })
@@ -855,10 +904,10 @@ class PaymentController extends Controller
                 ->orderBy('id', 'ASC')
                 ->get();
 
-            $paymentsData = $groupedPayments->map(function($p) {
+            $paymentsData = $groupedPayments->map(function ($p) {
                 $personName = optional($p->quota)->person_name ?? 'N/A';
                 $quotaNumber = optional($p->quota)->number ?? 'N/A';
-                
+
                 return [
                     'id' => $p->id,
                     'person_name' => $personName,
@@ -879,7 +928,6 @@ class PaymentController extends Controller
                 'payments' => $paymentsData,
                 'total_payments' => $paymentsData->count()
             ]);
-
         } catch (\Exception $e) {
             return response()->json([
                 'status' => false,
@@ -908,10 +956,10 @@ class PaymentController extends Controller
                 }
 
                 $affectedQuotas = [];
-                
+
                 foreach ($paymentsToDelete as $groupPayment) {
                     $groupPayment->update(['deleted' => 1]);
-                    
+
                     $quotaInfo = $groupPayment->quota;
                     if (!isset($affectedQuotas[$quotaInfo->id])) {
                         $affectedQuotas[$quotaInfo->id] = [
@@ -921,7 +969,7 @@ class PaymentController extends Controller
                     }
                     $affectedQuotas[$quotaInfo->id]['total_amount'] += $groupPayment->amount;
                 }
-                
+
                 // Actualizar cada cuota afectada
                 foreach ($affectedQuotas as $quotaData) {
                     $quotaData['quota']->update([
@@ -929,11 +977,10 @@ class PaymentController extends Controller
                         'paid' => 0
                     ]);
                 }
-
             } else {
                 // Contrato individual o eliminación directa
                 $payment->update(['deleted' => 1]);
-                
+
                 $quota->update([
                     'debt' => $quota->debt + $payment->amount,
                     'paid' => 0
@@ -942,18 +989,17 @@ class PaymentController extends Controller
 
             // Verificar si todas las cuotas del contrato fueron pagadas
             $hasUnpaidQuotas = $contract->quotas()->where('paid', 0)->exists();
-            
+
             $contract->update([
                 'paid' => $hasUnpaidQuotas ? 0 : 1
             ]);
 
             DB::commit();
-            
+
             return response()->json([
                 'status' => true,
                 'message' => 'Pago(s) eliminado(s) correctamente'
             ]);
-            
         } catch (\Exception $e) {
             DB::rollBack();
 
@@ -967,13 +1013,16 @@ class PaymentController extends Controller
     public function chargesExcel(Request $request)
     {
         $name = "GestionDeCobranza_" . now()->format('d_m_Y') . ".xlsx";
-        return Excel::download(new ChargesExport, $name);
+
+        return Excel::download(new ChargesExport($this->chargesQuotasBaseQuery($request)), $name);
     }
 
     public function duesExcel(Request $request)
     {
         $name = "GestionDeMora_" . now()->format('d_m_Y') . ".xlsx";
-        return Excel::download(new DuesExport, $name);
+        $date = $request->date ? Carbon::parse($request->date)->toDateString() : now()->toDateString();
+
+        return Excel::download(new DuesExport($this->duesQuotasBaseQuery($request, $date), $date), $name);
     }
 
     public function deleteGroup(Request $request)
@@ -981,21 +1030,20 @@ class PaymentController extends Controller
         try {
             $contractId = $request->contract_id;
             $quotaId = $request->quota_id;
-            
-            Payment::whereHas('quota', function($query) use ($contractId, $quotaId) {
+
+            Payment::whereHas('quota', function ($query) use ($contractId, $quotaId) {
                 $query->where('contract_id', $contractId)
                     ->where('id', $quotaId);
             })->update(['deleted' => 1]);
-            
+
             Quota::where('id', $quotaId)
                 ->where('contract_id', $contractId)
                 ->update(['paid' => 0]);
-            
+
             return response()->json([
                 'status' => true,
                 'message' => 'Pagos eliminados y cuota marcada como no pagada'
             ]);
-            
         } catch (\Exception $e) {
             return response()->json([
                 'status' => false,

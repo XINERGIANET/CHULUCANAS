@@ -50,9 +50,25 @@
                             <input type="date" class="form-control" name="end_date" value="{{ request()->end_date }}">
                         </div>
                     </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label class="form-label">Jefe de credito</label>
+                            <select class="form-select" name="credit_manager_id">
+                                <option value="">Seleccionar</option>
+                                @foreach ($credit_managers as $credit_manager)
+                                    <option value="{{ $credit_manager->id }}" @if ($credit_manager->id == request()->credit_manager_id) selected @endif>
+                                        {{ $credit_manager->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
                 </div>
-                <button class="btn btn-primary">Filtrar</button>
-                <a href="{{ route('payments.charges') }}" class="btn btn-danger">Limpiar</a>
+                <div class="d-flex gap-2 align-items-center">
+                    <button class="btn btn-primary">Filtrar</button>
+                    <a href="{{ route('payments.charges') }}" class="btn btn-danger">Limpiar</a>
+                    <!--Suma de pagos pendientes-->
+                    <p class="text-primary ms-auto mb-0">Total:  S/{{ number_format($total, 2, '.', ',') }}</p>
+                </div>
             </form>
         </div>
 

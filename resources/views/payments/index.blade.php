@@ -61,7 +61,8 @@
                             auth()->user()->hasRole('credit') ||
                             auth()->user()->hasRole('operations') ||
                             auth()->user()->hasRole('credit_manager') ||
-                            auth()->user()->hasRole('admin_credit'))
+                            auth()->user()->hasRole('admin_credit') ||
+                            auth()->user()->hasRole('seller'))
                         <div class="col-md-3">
                             <div class="mb-3">
                                 <label class="form-label">Cliente</label>
@@ -78,7 +79,8 @@
                                     @foreach ($payment_methods as $payment_method)
                                         <option value="{{ $payment_method->id }}"
                                             @if ($payment_method->id == request()->payment_method_id) selected @endif>
-                                            @if ($payment_method->id == 1) Retanqueo @else {{ $payment_method->name }} @endif
+
+                                            @if ($payment_method->id == 1 && (auth()->user()->hasRole('admin') || auth()->user()->hasRole('credit') || auth()->user()->hasRole('operations') || auth()->user()->hasRole('credit_manager') || auth()->user()->hasRole('admin_credit'))) Retanqueo @else {{ $payment_method->name }} @endif
                                         </option>
                                     @endforeach
                                 </select>
@@ -299,7 +301,7 @@
                                         <option value="">Seleccionar</option>
                                         @foreach ($payment_methods as $payment_method)
                                             <option value="{{ $payment_method->id }}">
-                                                @if ($payment_method->id == 1)
+                                                @if ($payment_method->id == 1 && (auth()->user()->hasRole('admin') || auth()->user()->hasRole('credit') || auth()->user()->hasRole('operations') || auth()->user()->hasRole('credit_manager') || auth()->user()->hasRole('admin_credit')))
                                                     Retanqueo
                                                 @else
                                                     {{ $payment_method->name }}

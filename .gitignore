@@ -13,6 +13,4 @@ npm-debug.log
 yarn-error.log
 /.idea
 /.vscode
-/.git_ac
-/.git_chulucanas
-/.git_aplicandoconfianza
+/.git_*

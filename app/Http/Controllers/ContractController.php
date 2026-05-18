@@ -431,6 +431,7 @@ class ContractController extends Controller
 
     public function pdf(Request $request, Contract $contract)
     {
+        Carbon::setLocale('es');
         $fpdf = new PdfModel('P');
 
         $fpdf->AddPage();
@@ -582,7 +583,7 @@ class ContractController extends Controller
         $amountInWords = \App\Helpers\NumberToWords::convertir($contract->requested_amount ?? 0, 'SOLES');
         $requestedInWords = \App\Helpers\NumberToWords::convertir($contract->requested_amount ?? 0, 'SOLES');
         $contractDate = $contract->date
-            ? Carbon::parse($contract->date)->format('j \d\e F \d\e Y')
+            ? Carbon::parse($contract->date)->translatedFormat('j \d\e F \d\e Y')
             : '________';
         $quotas = $contract->quotas;
 
