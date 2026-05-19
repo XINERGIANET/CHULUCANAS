@@ -429,8 +429,14 @@
             }
 
             function renderQuotas(items) {
-                var rows = items.map(function(item) {
+                var rows = items.map(function(item, index) {
                     var status = item.paid ? 'Pagado' : 'Pendiente';
+                    var paymentsCount = item.payments ? item.payments.length : 0;
+                    var paymentButton = paymentsCount
+                        ? `<button type="button" class="btn btn-sm btn-outline-primary js-view-quota-payments" data-index="${index}">
+                                <i class="bi bi-eye"></i> Ver pago${paymentsCount > 1 ? 's' : ''}
+                           </button>`
+                        : '<span class="text-muted">Sin pagos</span>';
                     return `
                         <tr>
                             <td>${escapeHtml(item.client)}</td>
@@ -440,14 +446,16 @@
                             <td>${escapeHtml(item.due_date || '')}</td>
                             <td>${escapeHtml(item.payment_date || '')}</td>
                             <td>${status}</td>
+                            <td>${paymentButton}</td>
                         </tr>
                     `;
                 }).join('');
 
                 if (!rows) {
-                    rows = '<tr><td colspan="7" class="text-center">No se encontraron cuotas</td></tr>';
+                    rows = '<tr><td colspan="8" class="text-center">No se encontraron cuotas</td></tr>';
                 }
 
+                window.rentabilidadQuotaItems = items || [];
                 $('#rentabilidadCardTableHead').html(`
                     <tr>
                         <th>Cliente</th>
@@ -457,9 +465,56 @@
                         <th>Fecha cuota</th>
                         <th>Fecha pago</th>
                         <th>Estado</th>
+                        <th>Pago</th>
                     </tr>
                 `);
                 $('#rentabilidadCardTableBody').html(rows);
+            }
+
+            function renderQuotaPaymentsDetail(item) {
+                var payments = item && item.payments ? item.payments : [];
+                if (!payments.length) {
+                    return '<div class="text-muted">No se encontraron pagos para esta cuota.</div>';
+                }
+
+                var rows = payments.map(function(payment) {
+                    var imageLink = payment.image
+                        ? `<a href="${escapeHtml(payment.image)}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-image"></i> Imagen
+                           </a>`
+                        : '<span class="text-muted">Sin imagen</span>';
+
+                    return `
+                        <tr>
+                            <td>${escapeHtml(payment.id || '')}</td>
+                            <td>${escapeHtml(payment.person_name || '')}</td>
+                            <td>S/${parseFloat(payment.amount || 0).toFixed(2)}</td>
+                            <td>${escapeHtml(payment.payment_method || '')}</td>
+                            <td>${escapeHtml(payment.payment_date || '')}</td>
+                            <td>${escapeHtml(payment.due_days || 0)}</td>
+                            <td>${imageLink}</td>
+                        </tr>
+                    `;
+                }).join('');
+
+                return `
+                    <div class="table-responsive">
+                        <table class="table table-sm mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Pago</th>
+                                    <th>Persona</th>
+                                    <th>Monto</th>
+                                    <th>Método</th>
+                                    <th>Fecha</th>
+                                    <th>Mora</th>
+                                    <th>Imagen</th>
+                                </tr>
+                            </thead>
+                            <tbody>${rows}</tbody>
+                        </table>
+                    </div>
+                `;
             }
 
             function loadCardDetails(card, title) {
@@ -510,6 +565,26 @@
                 var card = $(this).data('card');
                 var title = $(this).data('title');
                 loadCardDetails(card, title);
+            });
+
+            $(document).on('click', '.js-view-quota-payments', function() {
+                var $button = $(this);
+                var $row = $button.closest('tr');
+                var existingOpen = $row.next('.js-quota-payments-detail').length > 0;
+                $('.js-quota-payments-detail').remove();
+
+                if (existingOpen) {
+                    return;
+                }
+
+                var item = (window.rentabilidadQuotaItems || [])[$button.data('index')];
+                $row.after(`
+                    <tr class="js-quota-payments-detail">
+                        <td colspan="8" class="bg-light">
+                            ${renderQuotaPaymentsDetail(item)}
+                        </td>
+                    </tr>
+                `);
             });
 
             $(document).on('keypress', '.js-rentabilidad-card', function(e) {

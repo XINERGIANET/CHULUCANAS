@@ -978,41 +978,50 @@ class WebController extends Controller
 
         $today_timely_payments_people = $timelyPayments
             ->groupBy($peopleGroupKey)
-            ->filter(function ($paymentsGroup) use ($onlyCompleteGroupPayments, $groupContractIds, $personalQuotaCompletionDates) {
+            ->filter(function ($paymentsGroup) use ($onlyCompleteGroupPayments, $paymentGroupCoversQuota, $groupContractIds, $personalQuotaCompletionDates) {
                 $first = $paymentsGroup->sortBy('id')->first();
                 if (!$first || !$first->date || !$first->quota || !$first->quota->date) {
-                    return false;
-                }
-                if (!$onlyCompleteGroupPayments($first)) {
                     return false;
                 }
                 $contractId = $first->quota->contract_id ?? null;
                 // Para grupos: ya validamos que todo el grupo pagó en o antes de la cuota;
                 // basta con que la cuota esté pagada (paid=1 via onlyCompleteGroupPayments).
                 if (in_array($contractId, $groupContractIds, true)) {
-                    return true;
+                    return $paymentsGroup->every(function ($payment) {
+                        return $payment->quota && $payment->quota->paid == 1;
+                    })
+                        && $paymentGroupCoversQuota($paymentsGroup);
+                }
+                if (!$onlyCompleteGroupPayments($first)) {
+                    return false;
                 }
                 $completionDate = $personalQuotaCompletionDates->get($first->quota_id);
                 return $completionDate && $completionDate->isSameDay($first->quota->date);
             })
             ->count();
-        $today_timely_payments = $timelyPayments->filter(function ($payment) use ($onlyCompleteGroupPayments, $groupContractIds, $personalQuotaCompletionDates) {
-            if (!$onlyCompleteGroupPayments($payment)) {
-                return false;
-            }
-            if (!$payment->date || !$payment->quota || !$payment->quota->date) {
-                return false;
-            }
-            $contractId = $payment->quota->contract_id ?? null;
-            // Para grupos: ya validados como puntuales; incluir todos los pagos del grupo (incluso los adelantados)
-            if (in_array($contractId, $groupContractIds, true)) {
-                return true;
-            }
-            $completionDate = $personalQuotaCompletionDates->get($payment->quota_id);
-            return $completionDate && $completionDate->isSameDay($payment->quota->date);
-        })->sum('amount');
+        $today_timely_payments = $timelyPayments
+            ->groupBy($peopleGroupKey)
+            ->filter(function ($paymentsGroup) use ($onlyCompleteGroupPayments, $paymentGroupCoversQuota, $groupContractIds, $personalQuotaCompletionDates) {
+                $first = $paymentsGroup->sortBy('id')->first();
+                if (!$first || !$first->date || !$first->quota || !$first->quota->date) {
+                    return false;
+                }
+                $contractId = $first->quota->contract_id ?? null;
+                if (in_array($contractId, $groupContractIds, true)) {
+                    return $paymentsGroup->every(function ($payment) {
+                        return $payment->quota && $payment->quota->paid == 1;
+                    })
+                        && $paymentGroupCoversQuota($paymentsGroup);
+                }
+                if (!$onlyCompleteGroupPayments($first)) {
+                    return false;
+                }
+                $completionDate = $personalQuotaCompletionDates->get($first->quota_id);
+                return $completionDate && $completionDate->isSameDay($first->quota->date);
+            })
+            ->sum(fn($paymentsGroup) => $paymentsGroup->sum('amount'));
 
-        //PROYECTADO PARA HOY : todo lo que está en el rango de fechas (pagado y no pagado)
+        //PROYECTADO PARA HOY : todo lo que esta en el rango de fechas (pagado, parcial y pendiente)
 
         //Personas por documento (agrupado por cliente + Número de cuota)
         $today_projected_people = Quota::query()
@@ -1267,7 +1276,9 @@ class WebController extends Controller
                     });
                 })
                 ->with(['contract', 'payments' => function ($query) {
-                    $query->select('id', 'quota_id', 'date');
+                    $query->where('deleted', 0)
+                        ->with('payment_method')
+                        ->select('id', 'quota_id', 'amount', 'payment_method_id', 'date', 'due_days', 'image', 'people');
                 }])
                 ->orderBy('date', 'DESC')
                 ->orderBy('id', 'DESC')
@@ -1293,6 +1304,27 @@ class WebController extends Controller
                             return $q->payments;
                         })
                         ->max('date');
+                    $payments = $group
+                        ->flatMap(function ($q) {
+                            return $q->payments->map(function ($payment) use ($q) {
+                                $methodName = optional($payment->payment_method)->name ?? 'N/A';
+                                if ((int) optional($payment->payment_method)->id === 1 || strtoupper($methodName) === 'EFECTIVO') {
+                                    $methodName = 'Retanqueo';
+                                }
+
+                                return [
+                                    'id' => $payment->id,
+                                    'person_name' => $q->person_name,
+                                    'amount' => $payment->amount,
+                                    'payment_method' => $methodName,
+                                    'payment_date' => $payment->date ? $payment->date->format('d/m/Y') : null,
+                                    'due_days' => $payment->due_days,
+                                    'image' => $payment->image ? asset('storage/' . $payment->image) : null,
+                                ];
+                            });
+                        })
+                        ->sortByDesc('id')
+                        ->values();
 
                     $clientLabel = $contract ? $contract->client() : 'N/A';
                     if ($contract && $contract->client_type === 'Grupo') {
@@ -1312,6 +1344,7 @@ class WebController extends Controller
                         'due_date' => $first->date ? $first->date->format('d/m/Y') : null,
                         'payment_date' => $paymentDate ? \Carbon\Carbon::parse($paymentDate)->format('d/m/Y') : null,
                         'paid' => $allPaid,
+                        'payments' => $payments,
                     ];
                 })
                 ->values();
@@ -1446,7 +1479,7 @@ class WebController extends Controller
                     }
                     $completionDate = $personalQuotaCompletionDatesCard->get($payment->quota_id);
                     return $completionDate && !$completionDate->isSameDay($quota->date) && $completionDate->lt($quota->date);
-                })->filter($onlyCompleteGroupPaymentsCard)->values();
+                })->values();
             } else {
                 // PUNTUAL (timely) - los 3 casos:
                 // 1. Todos pagan el dia exacto -> Puntual
@@ -1481,7 +1514,7 @@ class WebController extends Controller
                         }
                     }
                     return true;
-                })->filter($onlyCompleteGroupPaymentsCard)->values();
+                })->values();
             }
         } else {
             $payments = Payment::active()
