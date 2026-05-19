@@ -1527,6 +1527,20 @@ class WebController extends Controller
 
         $grouped = $payments->groupBy($peopleGroupKeyCard);
 
+        $quotaContractIds = $payments
+            ->map(fn($payment) => optional($payment->quota)->contract_id)
+            ->filter()
+            ->unique()
+            ->values();
+
+        $quotaAmounts = $quotaContractIds->isEmpty()
+            ? collect()
+            : Quota::whereIn('contract_id', $quotaContractIds)
+                ->select('contract_id', 'number', DB::raw('SUM(amount) as total'))
+                ->groupBy('contract_id', 'number')
+                ->get()
+                ->keyBy(fn($quota) => $quota->contract_id . '_' . $quota->number);
+
         $items = $grouped
             ->map(function ($group) use ($quotaAmounts) {
                 $first = $group->first();
