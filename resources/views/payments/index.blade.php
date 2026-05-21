@@ -600,6 +600,18 @@
 
         function detectGroupType(quotas) {
             if (quotas.length > 0) {
+                // Los grupos actuales guardan una cuota por persona. En la ultima cuota puede
+                // quedar solo una persona pendiente, asi que no se debe depender del conteo.
+                let hasPersonQuotas = quotas.some(q => q.people && q.people.some(person => {
+                    return person.quota_id && (person.document || person.name);
+                }));
+
+                if (hasPersonQuotas) {
+                    currentGroupType = 'separated';
+                    $('#groupTypeLabel').text('Cuotas separadas por persona');
+                    $('#divGroupType').show();
+                    return;
+                }
                 // Buscar una cuota que tenga múltiples personas para detectar correctamente el tipo
                 let quotaWithMultiplePeople = quotas.find(q => q.people && q.people.length > 1);
                 
