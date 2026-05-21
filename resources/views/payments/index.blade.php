@@ -740,44 +740,91 @@
 
         function showUnifiedGroupPeople(people, totalDebt) {
             // GRUPO 2: Cuotas unificadas - solo checkboxes para seleccionar personas
-            var html = '<div class="alert alert-info mb-3">';
-            html += 'Lista de Personas';
-            html += '</div>';
+            var html = '<div class="table-responsive"><table class="table table-bordered">';
+            html += '<thead><tr><th>Seleccionar</th><th>Persona</th><th>Deuda</th><th>Monto a pagar</th></tr></thead><tbody>';
+            var peopleCount = people && people.length > 0 ? people.length : 1;
+            var debtPerPerson = peopleCount > 0 ? (parseFloat(totalDebt) || 0) / peopleCount : 0;
             
             if (people && people.length > 0) {
                 people.forEach(function(person) {
                     // Usar la dirección del contrato si está disponible
-                    var displayInfo = person.name;
+                    var personDebt = parseFloat(person.debt || person.amount || debtPerPerson) || 0;
+                    var personDocument = person.document || '';
+                    var personName = person.name || '';
                     
                     html += `
-                        <div class="form-check mb-2">
-                            <input class="form-check-input person-checkbox-unified" type="checkbox" 
-                                   data-document="${person.document}"
-                                   id="person_${person.document}">
-                            <label class="form-check-label" for="person_${person.document}">
-                                ${displayInfo}
-                            </label>
-                        </div>
+                        <tr>
+                            <td class="text-center">
+                                <input class="form-check-input person-checkbox-unified" type="checkbox" 
+                                       data-document="${personDocument}"
+                                       data-debt="${personDebt.toFixed(2)}">
+                            </td>
+                            <td>${personName}${personDocument ? ' (' + personDocument + ')' : ''}</td>
+                            <td>S/${personDebt.toFixed(2)}</td>
+                            <td>
+                                <input type="number" class="form-control person-amount-unified" 
+                                       min="0" 
+                                       max="${personDebt.toFixed(2)}" 
+                                       step="0.01" 
+                                       placeholder="0.00"
+                                       disabled>
+                            </td>
+                        </tr>
                     `;
                 });
             } else {
-                html += '<div class="alert alert-warning">No se encontraron personas en el contrato</div>';
+                html += '<tr><td colspan="4" class="text-center">No se encontraron personas en el contrato</td></tr>';
             }
+            html += '</tbody></table></div>';
 
             $('#divPeople').html(html);
-            $('#amount').val('').prop('readonly', false).attr('max', totalDebt);
-            $('#totalAccumulated').text(totalDebt.toFixed(2));
+            $('#amount').val('0.00').prop('readonly', true).attr('max', totalDebt);
+            $('#totalAccumulated').text('0.00');
             
-            // Validar el monto contra la deuda total
-            $('#amount').on('input', function() {
-                var amount = parseFloat($(this).val()) || 0;
-                if (amount > totalDebt) {
-                    $(this).val(totalDebt.toFixed(2));
-                    ToastError.fire({
-                        text: 'El monto no puede ser mayor al saldo pendiente'
-                    });
+            $('.person-checkbox-unified').on('change', function() {
+                var $row = $(this).closest('tr');
+                var $input = $row.find('.person-amount-unified');
+
+                if ($(this).is(':checked')) {
+                    $input.prop('disabled', false);
+                } else {
+                    $input.val('').prop('disabled', true);
+                    calculateTotalUnified(totalDebt);
                 }
             });
+
+            $('.person-amount-unified').on('input', function() {
+                var maxAmount = parseFloat($(this).attr('max')) || 0;
+                var currentAmount = parseFloat($(this).val()) || 0;
+                
+                if (currentAmount > maxAmount) {
+                    $(this).val(maxAmount.toFixed(2));
+                    ToastError.fire({
+                        text: 'El monto no puede ser mayor a la deuda'
+                    });
+                }
+
+                calculateTotalUnified(totalDebt);
+            });
+        }
+
+        function calculateTotalUnified(totalDebt) {
+            var total = 0;
+            $('.person-checkbox-unified:checked').each(function() {
+                var $row = $(this).closest('tr');
+                var amount = parseFloat($row.find('.person-amount-unified').val()) || 0;
+                total += amount;
+            });
+
+            if (total > totalDebt) {
+                total = totalDebt;
+                ToastError.fire({
+                    text: 'El monto no puede ser mayor al saldo pendiente'
+                });
+            }
+            
+            $('#amount').val(total.toFixed(2));
+            $('#totalAccumulated').text(total.toFixed(2));
         }
 
         $('#storeForm').submit(function(e) {
@@ -840,19 +887,24 @@
                     var quotaId = peopleData[0].quota_id;
                     
                     var selectedPeople = [];
+                    var amount = 0;
                     $('.person-checkbox-unified:checked').each(function() {
-                        selectedPeople.push($(this).attr('data-document'));
+                        var $row = $(this).closest('tr');
+                        var personAmount = parseFloat($row.find('.person-amount-unified').val()) || 0;
+                        if (personAmount > 0) {
+                            selectedPeople.push($(this).attr('data-document'));
+                            amount += personAmount;
+                        }
                     });
                     
                     if (selectedPeople.length === 0) {
                         ToastError.fire({
-                            text: 'Debe seleccionar al menos una persona'
+                            text: 'Debe seleccionar al menos una persona y especificar el monto'
                         });
                         $('#btn-save').prop('disabled', false);
                         return;
                     }
                     
-                    var amount = parseFloat($('#amount').val()) || 0;
                     if (amount <= 0) {
                         ToastError.fire({
                             text: 'Debe especificar un monto válido'
