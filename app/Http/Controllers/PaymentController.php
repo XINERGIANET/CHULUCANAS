@@ -454,7 +454,7 @@ class PaymentController extends Controller
             'payments_data' => 'required',
             'payment_method_id' => 'required',
             'date' => 'required|date',
-            'image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
+            'image' => 'nullable|image|mimes:jpg,jpeg,png,webp',
         ]);
 
         if ($validator->fails()) {
@@ -578,7 +578,7 @@ class PaymentController extends Controller
             'payment_method_id' => 'required',
             'date' => 'required|date',
             'people' => 'required|array',
-            'image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
+            'image' => 'nullable|image|mimes:jpg,jpeg,png,webp',
         ]);
 
         $quota = Quota::find($request->quota_id);
@@ -670,7 +670,7 @@ class PaymentController extends Controller
             'amount' => 'required|numeric|min:0.1',
             'payment_method_id' => 'required',
             'date' => 'required|date',
-            'image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
+            'image' => 'nullable|image|mimes:jpg,jpeg,png,webp',
         ]);
 
         $quota = Quota::find($request->quota_id);

@@ -497,8 +497,6 @@
         let currentContract = null;
         let currentGroupType = null; // 'separated' o 'unified'
         let groupPaymentsData = [];
-        const maxPaymentImageSize = 2 * 1024 * 1024;
-
         function getAjaxErrorMessage(xhr, fallback) {
             if (xhr && xhr.responseJSON) {
                 if (xhr.responseJSON.error) return xhr.responseJSON.error;
@@ -506,7 +504,7 @@
             }
 
             if (xhr && xhr.status === 413) {
-                return 'La imagen es demasiado pesada. Debe pesar como maximo 2 MB.';
+                return 'La imagen supera el limite permitido por el servidor.';
             }
 
             if (xhr && xhr.status === 419) {
@@ -855,14 +853,6 @@
             fd.append('date', $('#date').val());
             
             if ($('#image')[0].files[0]) {
-                if ($('#image')[0].files[0].size > maxPaymentImageSize) {
-                    ToastError.fire({
-                        text: 'La imagen es demasiado pesada. Debe pesar como maximo 2 MB.'
-                    });
-                    $('#btn-save').prop('disabled', false);
-                    return;
-                }
-
                 fd.append('image', $('#image')[0].files[0]);
             }
 
