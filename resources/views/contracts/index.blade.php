@@ -136,7 +136,7 @@
                                             data-id="{{ $contract->id }}"
                                             data-client="{{ $contract->client_type == 'Personal' ? $contract->name : $contract->group_name }}"
                                             data-requested="{{ $contract->requested_amount }}"
-                                            data-quotas="{{ $contract->quotas_number }}"
+                                            data-months="{{ $contract->months_number }}"
                                             data-rate="15"
                                             data-date="{{ $contract->date->format('Y-m-d') }}">
                                             <i class="ti ti-calculator icon"></i>
@@ -413,7 +413,7 @@
                             </div>
                             <div class="col-lg-4">
                                 <div class="mb-3">
-                                    <label class="form-label required">Número de cuotas</label>
+                                    <label class="form-label required">Número de meses</label>
                                     <input type="text" class="form-control" name="months_number" autocomplete="off">
                                 </div>
                             </div>
@@ -544,8 +544,8 @@
                         <div class="row">
                             <div class="col-lg-6">
                                 <div class="mb-3">
-                                    <label class="form-label required">Número de cuotas</label>
-                                    <input class="form-control" id="recalculateQuotas" name="quotas_number">
+                                    <label class="form-label required">Número de meses</label>
+                                    <input class="form-control" id="recalculateMonths" name="months_number">
                                 </div>
                             </div>
                             <div class="col-lg-6">
@@ -1191,7 +1191,7 @@
             $('#recalculateContractId').val($(this).data('id'));
             $('#recalculateClient').val($(this).data('client') || '');
             $('#recalculateRequested').val($(this).data('requested') || '');
-            $('#recalculateQuotas').val($(this).data('quotas') || '');
+            $('#recalculateMonths').val($(this).data('months') || '');
             $('#recalculateRate').val($(this).data('rate') || 15);
             $('#recalculateDate').val($(this).data('date') || '');
             $('#recalculateModal').modal('show');
@@ -1200,12 +1200,12 @@
         $('#recalculateForm').submit(function(e) {
             e.preventDefault();
             var id = $('#recalculateContractId').val();
-            var quotasNumber = $('#recalculateQuotas').val();
+            var monthsNumber = $('#recalculateMonths').val();
             var monthlyInterest = $('#recalculateRate').val();
             var date = $('#recalculateDate').val();
 
-            if (!quotasNumber || !monthlyInterest || !date) {
-                ToastError.fire({ text: 'Completa cuotas, tasa y fecha inicial' });
+            if (!monthsNumber || !monthlyInterest || !date) {
+                ToastError.fire({ text: 'Completa meses, tasa y fecha inicial' });
                 return;
             }
 
@@ -1215,7 +1215,7 @@
                 data: {
                     _method: 'PATCH',
                     recalculate_schedule: 1,
-                    quotas_number: quotasNumber,
+                    months_number: monthsNumber,
                     monthly_interest: monthlyInterest,
                     date: date,
                     _token: '{{ csrf_token() }}'

@@ -177,8 +177,8 @@ class ContractController extends Controller
         }
 
         $requestedAmount = $this->normalizeMoney($request->requested_amount);
-        $quotas = max(1, (int) round($this->normalizeMoney($request->months_number)));
-        $monthsForInterest = $quotas / 4;
+        $monthsForInterest = $this->normalizeMoney($request->months_number);
+        $quotas = max(1, (int) round($monthsForInterest * 4));
         $monthlyInterestPercentage = $request->edit_interest == 1
             ? $this->normalizeMoney($request->interest)
             : 15;
@@ -400,7 +400,7 @@ class ContractController extends Controller
             'seller_id' => 'nullable|integer|exists:users,id',
             'number_pagare' => 'nullable|integer',
             'recalculate_schedule' => 'nullable|boolean',
-            'quotas_number' => 'required_if:recalculate_schedule,1|nullable|integer|min:1',
+            'months_number' => 'required_if:recalculate_schedule,1|nullable|numeric|min:1',
             'monthly_interest' => 'required_if:recalculate_schedule,1|nullable|numeric|min:0',
             'date' => 'required_if:recalculate_schedule,1|nullable|date',
         ]);
@@ -436,8 +436,8 @@ class ContractController extends Controller
 
             try {
                 $requestedAmount = $this->normalizeMoney($contract->requested_amount);
-                $quotas = max(1, (int) $request->quotas_number);
-                $monthsForInterest = $quotas / 4;
+                $monthsForInterest = $this->normalizeMoney($request->months_number);
+                $quotas = max(1, (int) round($monthsForInterest * 4));
                 $monthlyInterestPercentage = $this->normalizeMoney($request->monthly_interest);
                 $percentage = round($monthlyInterestPercentage * $monthsForInterest, 2);
                 $rawInterest = round($requestedAmount * ($monthlyInterestPercentage / 100) * $monthsForInterest, 2);
