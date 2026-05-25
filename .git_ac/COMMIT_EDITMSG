@@ -1,1 +1,1 @@
-feat: Implementar lógica para recalcular cronograma de pagos y agregar modal de edición
+feat: Cambiar 'número de cuotas' a 'número de meses' en el formulario y ajustar la lógica de cálculo correspondiente

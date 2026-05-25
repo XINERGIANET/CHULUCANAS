@@ -200,7 +200,7 @@ class ContractController extends Controller
         $quota_dates = [];
 
         for ($i = 1; $i <= $quotas; $i++) {
-            $quota_date = $date->copy()->addWeeks($i - 1);
+            $quota_date = $date->copy()->addWeeks($i);
 
             $quota_dates[] = [
                 'number' => $i,
@@ -449,7 +449,7 @@ class ContractController extends Controller
                 $quotaDates = [];
 
                 for ($i = 1; $i <= $quotas; $i++) {
-                    $quotaDate = $date->copy()->addWeeks($i - 1);
+                    $quotaDate = $date->copy()->addWeeks($i);
                     $quotaDates[] = [
                         'number' => $i,
                         'date' => $quotaDate->format('Y-m-d'),
