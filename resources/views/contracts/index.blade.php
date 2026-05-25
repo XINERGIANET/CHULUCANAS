@@ -132,15 +132,7 @@
                                             data-number="{{ $contract->number_pagare }}">
                                             <i class="ti ti-hash icon"></i>
                                         </button>
-                                        <button class="btn btn-icon btn-warning btn-recalculate"
-                                            data-id="{{ $contract->id }}"
-                                            data-client="{{ $contract->client_type == 'Personal' ? $contract->name : $contract->group_name }}"
-                                            data-requested="{{ $contract->requested_amount }}"
-                                            data-months="{{ $contract->months_number }}"
-                                            data-rate="15"
-                                            data-date="{{ $contract->date->format('Y-m-d') }}">
-                                            <i class="ti ti-calculator icon"></i>
-                                        </button>
+                                      
                                         @if ($contract->has_quota_overdue_1220 == 1)
                                             <button class="btn btn-icon btn-warning btn-transfer"
                                                 data-id="{{ $contract->id }}"

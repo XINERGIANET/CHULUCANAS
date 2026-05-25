@@ -1,1 +1,1 @@
-feat: Cambiar 'número de cuotas' a 'número de meses' en el formulario y ajustar la lógica de cálculo correspondiente
+fix: Eliminar botón de recalculo de contrato en la vista de contratos
