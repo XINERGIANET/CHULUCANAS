@@ -393,17 +393,16 @@
                     // Agrupar por número de cuota
                     $weeklyGroups = $contract->quotas->groupBy('number');
                     // Calcular el monto por cuota: monto total a devolver / número de cuotas
-                    $payableAmount = $contract->payable_amount ?? 0;
-                    $quotasNumber = $contract->quotas_number ?? 1;
-                    $amountPerQuota = $quotasNumber > 0 ? $payableAmount / $quotasNumber : 0;
+                    $amountPerQuota = 0;
                     // Redondear hacia arriba a 1 decimal (0.10)
-                    $amountPerQuota = ceil($amountPerQuota * 10) / 10;
+                    $amountPerQuota = 0;
                 @endphp
 
                 @foreach ($weeklyGroups as $number => $group)
                     @php
                         $first = $group->first();
                         $date = $first->date ? $first->date->format('d/m/Y') : '';
+                        $amountPerQuota = $group->sum('amount');
                     @endphp
                     <tr>
                         <td style="text-align: center;">{{ $number }}</td>
@@ -413,11 +412,10 @@
                 @endforeach
             @else
                 @php
-                    $payableAmount = $contract->payable_amount ?? 0;
                     $quotasNumber = $contract->quotas_number ?? 4;
-                    $amountPerQuota = $quotasNumber > 0 ? $payableAmount / $quotasNumber : 0;
+                    $amountPerQuota = 0;
                     // Redondear hacia arriba a 1 decimal (0.10)
-                    $amountPerQuota = ceil($amountPerQuota * 10) / 10;
+                    $amountPerQuota = 0;
                 @endphp
                 @for ($i = 1; $i <= $quotasNumber; $i++)
                     <tr>

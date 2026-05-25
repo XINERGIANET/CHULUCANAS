@@ -132,6 +132,15 @@
                                             data-number="{{ $contract->number_pagare }}">
                                             <i class="ti ti-hash icon"></i>
                                         </button>
+                                        <button class="btn btn-icon btn-warning btn-recalculate"
+                                            data-id="{{ $contract->id }}"
+                                            data-client="{{ $contract->client_type == 'Personal' ? $contract->name : $contract->group_name }}"
+                                            data-requested="{{ $contract->requested_amount }}"
+                                            data-quotas="{{ $contract->quotas_number }}"
+                                            data-rate="15"
+                                            data-date="{{ $contract->date->format('Y-m-d') }}">
+                                            <i class="ti ti-calculator icon"></i>
+                                        </button>
                                         @if ($contract->has_quota_overdue_1220 == 1)
                                             <button class="btn btn-icon btn-warning btn-transfer"
                                                 data-id="{{ $contract->id }}"
@@ -404,7 +413,7 @@
                             </div>
                             <div class="col-lg-4">
                                 <div class="mb-3">
-                                    <label class="form-label required">Número de meses</label>
+                                    <label class="form-label required">Número de cuotas</label>
                                     <input type="text" class="form-control" name="months_number" autocomplete="off">
                                 </div>
                             </div>
@@ -503,6 +512,52 @@
                         <div class="mb-3">
                             <label class="form-label">Número de pagaré</label>
                             <input class="form-control" id="numberPagare" name="number_pagare">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn me-auto" data-bs-dismiss="modal">Cerrar</button>
+                        <button type="submit" class="btn btn-primary">Guardar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal modal-blur fade" id="recalculateModal" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <form id="recalculateForm" method="POST">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Editar cronograma</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <input type="hidden" id="recalculateContractId" name="contract_id">
+                        <div class="mb-3">
+                            <label class="form-label">Cliente</label>
+                            <input class="form-control" id="recalculateClient" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Monto solicitado</label>
+                            <input class="form-control" id="recalculateRequested" readonly>
+                        </div>
+                        <div class="row">
+                            <div class="col-lg-6">
+                                <div class="mb-3">
+                                    <label class="form-label required">Número de cuotas</label>
+                                    <input class="form-control" id="recalculateQuotas" name="quotas_number">
+                                </div>
+                            </div>
+                            <div class="col-lg-6">
+                                <div class="mb-3">
+                                    <label class="form-label required">Tasa mensual (%)</label>
+                                    <input class="form-control" id="recalculateRate" name="monthly_interest">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label required">Fecha inicial</label>
+                            <input type="date" class="form-control" id="recalculateDate" name="date">
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -1130,6 +1185,55 @@
             $('#transferContractId').val(id);
             $('#transferSeller').val(seller);
             $('#transferModal').modal('show');
+        });
+
+        $(document).on('click', '.btn-recalculate', function() {
+            $('#recalculateContractId').val($(this).data('id'));
+            $('#recalculateClient').val($(this).data('client') || '');
+            $('#recalculateRequested').val($(this).data('requested') || '');
+            $('#recalculateQuotas').val($(this).data('quotas') || '');
+            $('#recalculateRate').val($(this).data('rate') || 15);
+            $('#recalculateDate').val($(this).data('date') || '');
+            $('#recalculateModal').modal('show');
+        });
+
+        $('#recalculateForm').submit(function(e) {
+            e.preventDefault();
+            var id = $('#recalculateContractId').val();
+            var quotasNumber = $('#recalculateQuotas').val();
+            var monthlyInterest = $('#recalculateRate').val();
+            var date = $('#recalculateDate').val();
+
+            if (!quotasNumber || !monthlyInterest || !date) {
+                ToastError.fire({ text: 'Completa cuotas, tasa y fecha inicial' });
+                return;
+            }
+
+            $.ajax({
+                url: '{{ route('contracts.index') }}' + '/' + id,
+                method: 'POST',
+                data: {
+                    _method: 'PATCH',
+                    recalculate_schedule: 1,
+                    quotas_number: quotasNumber,
+                    monthly_interest: monthlyInterest,
+                    date: date,
+                    _token: '{{ csrf_token() }}'
+                },
+                success: function(data) {
+                    if (data.status) {
+                        $('#recalculateModal').modal('hide');
+                        ToastMessage.fire({ text: 'Cronograma actualizado' }).then(function() {
+                            location.reload();
+                        });
+                    } else {
+                        ToastError.fire({ text: data.error || 'Ocurrió un error' });
+                    }
+                },
+                error: function() {
+                    ToastError.fire({ text: 'Ocurrió un error' });
+                }
+            });
         });
 
         $('#transferForm').submit(function(e) {
