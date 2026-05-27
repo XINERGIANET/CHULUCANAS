@@ -387,12 +387,45 @@ class ContractController extends Controller
         return $payables;
     }
 
+    private function resolveSchedule(?string $periodicity, $term): array
+    {
+        $term = $this->normalizeMoney($term);
+        $periodicity = $periodicity ?: 'weekly';
+
+        if ($periodicity === 'biweekly') {
+            $quotas = max(1, (int) round($term));
+            $weeks = $quotas * 2;
+            return [
+                'quotas' => $quotas,
+                'months' => $weeks / 4,
+                'interval_weeks' => 2,
+            ];
+        }
+
+        if ($periodicity === 'monthly') {
+            $months = max(1, $term);
+            return [
+                'quotas' => max(1, (int) round($months)),
+                'months' => $months,
+                'interval_weeks' => 4,
+            ];
+        }
+
+        $quotas = max(1, (int) round($term));
+        return [
+            'quotas' => $quotas,
+            'months' => $quotas / 4,
+            'interval_weeks' => 1,
+        ];
+    }
+
     public function update(Request $request, Contract $contract) {
         $validator = Validator::make($request->all(), [
             'seller_id' => 'nullable|integer|exists:users,id',
             'number_pagare' => 'nullable|integer',
             'recalculate_schedule' => 'nullable|boolean',
-            'months_number' => 'required_if:recalculate_schedule,1|nullable|numeric|min:1',
+            'schedule_periodicity' => 'required_if:recalculate_schedule,1|nullable|in:weekly,biweekly,monthly',
+            'schedule_term' => 'required_if:recalculate_schedule,1|nullable|numeric|min:1',
             'monthly_interest' => 'required_if:recalculate_schedule,1|nullable|numeric|min:0',
             'date' => 'required_if:recalculate_schedule,1|nullable|date',
         ]);
@@ -428,8 +461,10 @@ class ContractController extends Controller
 
             try {
                 $requestedAmount = $this->normalizeMoney($contract->requested_amount);
-                $monthsForInterest = $this->normalizeMoney($request->months_number);
-                $quotas = max(1, (int) round($monthsForInterest * 4));
+                $schedule = $this->resolveSchedule($request->schedule_periodicity, $request->schedule_term);
+                $monthsForInterest = $schedule['months'];
+                $quotas = $schedule['quotas'];
+                $intervalWeeks = $schedule['interval_weeks'];
                 $monthlyInterestPercentage = $this->normalizeMoney($request->monthly_interest);
                 $percentage = round($monthlyInterestPercentage * $monthsForInterest, 2);
                 $rawInterest = round($requestedAmount * ($monthlyInterestPercentage / 100) * $monthsForInterest, 2);
@@ -441,7 +476,7 @@ class ContractController extends Controller
                 $quotaDates = [];
 
                 for ($i = 1; $i <= $quotas; $i++) {
-                    $quotaDate = $date->copy()->addWeeks($i);
+                    $quotaDate = $date->copy()->addWeeks($i * $intervalWeeks);
                     $quotaDates[] = [
                         'number' => $i,
                         'date' => $quotaDate->format('Y-m-d'),

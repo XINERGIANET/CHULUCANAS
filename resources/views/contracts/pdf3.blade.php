@@ -402,8 +402,7 @@
                     @php
                         $first = $group->first();
                         $date = $first->date ? $first->date->format('d/m/Y') : '';
-                        $quotasNumber = $contract->quotas_number ?? 1;
-                        $amountPerQuota = $quotasNumber > 0 ? round(($contract->payable_amount ?? 0) / $quotasNumber, 1) : 0;
+                        $amountPerQuota = $group->sum('amount');
                     @endphp
                     <tr>
                         <td style="text-align: center;">{{ $number }}</td>
