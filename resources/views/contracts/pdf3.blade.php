@@ -402,7 +402,8 @@
                     @php
                         $first = $group->first();
                         $date = $first->date ? $first->date->format('d/m/Y') : '';
-                        $amountPerQuota = $group->sum('amount');
+                        $quotasNumber = $contract->quotas_number ?? 1;
+                        $amountPerQuota = $quotasNumber > 0 ? round(($contract->payable_amount ?? 0) / $quotasNumber, 1) : 0;
                     @endphp
                     <tr>
                         <td style="text-align: center;">{{ $number }}</td>
@@ -489,7 +490,7 @@
                             <td style="text-align: left; padding-left: 8px;">{{ $person_name }}</td>
                             <td style="text-align: center;">{{ $person_document }}</td>
                             <td style="text-align: center;">S/. {{ number_format($monto_pedido, 2) }}</td>
-                            <td style="text-align: center;">S/. {{ number_format($monto_a_pagar, 2) }}</td>
+                            <td style="text-align: center;">S/. {{ number_format(round($monto_a_pagar, 1), 2) }}</td>
                             <td style="text-align: center;"></td>
                         </tr>
                     @endforeach

@@ -187,8 +187,8 @@ class ContractController extends Controller
         $rawInterest = round($requestedAmount * ($monthlyInterestPercentage / 100) * $monthsForInterest, 2);
         $rawPayableAmount = round($requestedAmount + $rawInterest, 2);
         $quotaAmounts = $this->buildAdjustedQuotaAmounts($rawPayableAmount, $quotas);
-        $payable_amount = round(array_sum($quotaAmounts), 2);
-        $interest = round($payable_amount - $requestedAmount, 2);
+        $payable_amount = $rawPayableAmount;
+        $interest = $rawInterest;
         $quota = $quotaAmounts[0] ?? 0;
 
         $count = DB::table('config')->pluck('number_pagare')->first();
@@ -323,14 +323,6 @@ class ContractController extends Controller
                 }
             }
 
-            $createdQuotaTotal = round($contract->quotas()->sum('amount'), 2);
-            $payable_amount = $createdQuotaTotal;
-            $interest = round($payable_amount - $requestedAmount, 2);
-            $contract->update([
-                'interest' => $interest,
-                'payable_amount' => $payable_amount,
-            ]);
-
             DB::table('config')->update([
                 'number_pagare' => $number_pagare
             ]);
@@ -367,7 +359,7 @@ class ContractController extends Controller
     private function buildAdjustedQuotaAmounts(float $total, int $quotaCount): array
     {
         $quotaCount = max(1, $quotaCount);
-        $roundedQuota = ceil(($total / $quotaCount) * 10) / 10;
+        $roundedQuota = round($total / $quotaCount, 1);
 
         return array_fill(0, $quotaCount, round($roundedQuota, 2));
     }
@@ -443,8 +435,8 @@ class ContractController extends Controller
                 $rawInterest = round($requestedAmount * ($monthlyInterestPercentage / 100) * $monthsForInterest, 2);
                 $rawPayableAmount = round($requestedAmount + $rawInterest, 2);
                 $quotaAmounts = $this->buildAdjustedQuotaAmounts($rawPayableAmount, $quotas);
-                $payableAmount = round(array_sum($quotaAmounts), 2);
-                $interest = round($payableAmount - $requestedAmount, 2);
+                $payableAmount = $rawPayableAmount;
+                $interest = $rawInterest;
                 $date = Carbon::parse($request->date);
                 $quotaDates = [];
 
@@ -502,14 +494,6 @@ class ContractController extends Controller
                         ]);
                     }
                 }
-
-                $createdQuotaTotal = round($contract->quotas()->sum('amount'), 2);
-                $payableAmount = $createdQuotaTotal;
-                $interest = round($payableAmount - $requestedAmount, 2);
-                $contract->update([
-                    'interest' => $interest,
-                    'payable_amount' => $payableAmount,
-                ]);
 
                 DB::commit();
 
