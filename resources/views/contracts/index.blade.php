@@ -133,10 +133,12 @@
                                             <i class="ti ti-hash icon"></i>
                                         </button>
                                       <button class="btn btn-icon btn-warning btn-recalculate"
+                                      style="display: none"
                                             data-id="{{ $contract->id }}"
                                             data-client="{{ $contract->client_type == 'Personal' ? $contract->name : $contract->group_name }}"
                                             data-requested="{{ $contract->requested_amount }}"
-                                            data-months="{{ $contract->months_number }}"
+                                            data-periodicity="weekly"
+                                            data-term="{{ $contract->quotas_number }}"
                                             data-rate="15"
                                             data-date="{{ $contract->date->format('Y-m-d') }}">
                                             <i class="ti ti-calculator icon"></i>
@@ -544,8 +546,18 @@
                         <div class="row">
                             <div class="col-lg-6">
                                 <div class="mb-3">
-                                    <label class="form-label required">Número de meses</label>
-                                    <input class="form-control" id="recalculateMonths" name="months_number">
+                                    <label class="form-label required">Periodicidad</label>
+                                    <select class="form-select" id="recalculatePeriodicity" name="schedule_periodicity">
+                                        <option value="weekly">Semanal</option>
+                                        <option value="biweekly">Quincenal</option>
+                                        <option value="monthly">Mensual</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-lg-6">
+                                <div class="mb-3">
+                                    <label class="form-label required" id="recalculateTermLabel">Número de semanas</label>
+                                    <input class="form-control" id="recalculateTerm" name="schedule_term">
                                 </div>
                             </div>
                             <div class="col-lg-6">
@@ -1187,25 +1199,41 @@
             $('#transferModal').modal('show');
         });
 
+        function updateRecalculateTermLabel() {
+            var periodicity = $('#recalculatePeriodicity').val();
+            var label = 'Número de semanas';
+            if (periodicity === 'biweekly') {
+                label = 'Número de quincenas';
+            } else if (periodicity === 'monthly') {
+                label = 'Número de meses';
+            }
+            $('#recalculateTermLabel').text(label);
+        }
+
+        $('#recalculatePeriodicity').change(updateRecalculateTermLabel);
+
         $(document).on('click', '.btn-recalculate', function() {
             $('#recalculateContractId').val($(this).data('id'));
             $('#recalculateClient').val($(this).data('client') || '');
             $('#recalculateRequested').val($(this).data('requested') || '');
-            $('#recalculateMonths').val($(this).data('months') || '');
+            $('#recalculatePeriodicity').val($(this).data('periodicity') || 'weekly');
+            $('#recalculateTerm').val($(this).data('term') || '');
             $('#recalculateRate').val($(this).data('rate') || 15);
             $('#recalculateDate').val($(this).data('date') || '');
+            updateRecalculateTermLabel();
             $('#recalculateModal').modal('show');
         });
 
         $('#recalculateForm').submit(function(e) {
             e.preventDefault();
             var id = $('#recalculateContractId').val();
-            var monthsNumber = $('#recalculateMonths').val();
+            var periodicity = $('#recalculatePeriodicity').val();
+            var scheduleTerm = $('#recalculateTerm').val();
             var monthlyInterest = $('#recalculateRate').val();
             var date = $('#recalculateDate').val();
 
-            if (!monthsNumber || !monthlyInterest || !date) {
-                ToastError.fire({ text: 'Completa meses, tasa y fecha inicial' });
+            if (!periodicity || !scheduleTerm || !monthlyInterest || !date) {
+                ToastError.fire({ text: 'Completa periodicidad, número, tasa y fecha inicial' });
                 return;
             }
 
@@ -1215,7 +1243,8 @@
                 data: {
                     _method: 'PATCH',
                     recalculate_schedule: 1,
-                    months_number: monthsNumber,
+                    schedule_periodicity: periodicity,
+                    schedule_term: scheduleTerm,
                     monthly_interest: monthlyInterest,
                     date: date,
                     _token: '{{ csrf_token() }}'
