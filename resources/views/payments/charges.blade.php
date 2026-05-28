@@ -84,14 +84,18 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @if ($quotas->count() > 0)
-                        @foreach ($quotas as $quota)
+                    @php
+                        $groupedQuotas = $quotas->groupBy(fn($q) => $q->contract_id . '_' . $q->number);
+                    @endphp
+                    @if ($groupedQuotas->count() > 0)
+                        @foreach ($groupedQuotas as $group)
+                            @php
+                                $quota = $group->first();
+                                $amount = $group->sum('amount');
+                                $debt = $group->sum('debt');
+                            @endphp
                             <tr>
-                                @if ($quota->person_document !== null)
-                                    <td>{{ optional($quota->contract)->client() }} - {{ $quota->person_name ?? $quota->person_document ?? '' }}</td>
-                                @else
-                                    <td>{{ optional($quota->contract)->client() }}</td>
-                                @endif
+                                <td>{{ optional($quota->contract)->client() }}</td>
                                 <td>{{ $quota->number }}</td>
                                 <td>{{ number_format($quota->amount, 2) }}</td>
                                 <td>{{ number_format($quota->debt, 2) }}</td>
