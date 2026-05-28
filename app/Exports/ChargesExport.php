@@ -25,24 +25,18 @@ class ChargesExport implements FromCollection, WithHeadings, WithMapping, WithSt
      */
     public function collection()
     {
-        return (clone $this->quotasQuery)
-            ->orderBy('date')
-            ->get()
-            ->groupBy(fn($quota) => $quota->contract_id . '_' . $quota->number)
-            ->map(function ($group) {
-                $quota = clone $group->first();
-                $quota->amount = $group->sum('amount');
-                $quota->debt = $group->sum('debt');
-
-                return $quota;
-            })
-            ->values();
+        return (clone $this->quotasQuery)->orderBy('date')->get();
     }
 
     public function map($quota): array
     {
+        $client = optional($quota->contract)->client();
+        if ($quota->person_document !== null) {
+            $client = $client . ' - ' . ($quota->person_name ?? $quota->person_document ?? '');
+        }
+
         return [
-            optional($quota->contract)->client(),
+            $client,
             $quota->number,
             $quota->amount,
             $quota->debt,
