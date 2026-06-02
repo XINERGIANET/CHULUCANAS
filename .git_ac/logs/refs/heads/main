@@ -17,3 +17,5 @@ fd16c2f87289e0b54dc6e73f288d92024f9375c5 09647a37fd9f276a39910b6a8c348f43d191dc6
 4d4925732a59951833a14c0987cf726e5632de31 ece3eebb38e9217caf9626879d4fb32927473f6f FrankOcrospomaUgaz <anthony.2005.rap@gmail.com> 1779745667 -0500	commit: fix: Eliminar botón de recalculo de contrato en la vista de contratos
 ece3eebb38e9217caf9626879d4fb32927473f6f 045f736a2c4b7a2cfba5cd8e3e862aa158a4454a FrankOcrospomaUgaz <anthony.2005.rap@gmail.com> 1779896574 -0500	commit: fix: Ajustar cálculos de monto a pagar e interés en el controlador de contratos
 045f736a2c4b7a2cfba5cd8e3e862aa158a4454a daac4406c7376fba85da432d0f1699e5feb7aa71 FrankOcrospomaUgaz <anthony.2005.rap@gmail.com> 1779898009 -0500	commit (merge): Merge branch 'main' of https://github.com/XINERGIANET/FINANCIERA
+daac4406c7376fba85da432d0f1699e5feb7aa71 51e64d05395a571845561b7a56a407029a83fe8b FrankOcrospomaUgaz <anthony.2005.rap@gmail.com> 1779979119 -0500	commit: fixed
+51e64d05395a571845561b7a56a407029a83fe8b 5faa376c3ef0ad4cd3cfaaa8bf782f9a6d0d8e63 FrankOcrospomaUgaz <anthony.2005.rap@gmail.com> 1779979195 -0500	commit (merge): Merge branch 'main' of https://github.com/XINERGIANET/FINANCIERA

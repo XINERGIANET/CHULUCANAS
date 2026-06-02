@@ -65,6 +65,7 @@ Route::middleware('auth')->group(function () {
 	Route::get('districts/api', [DistrictController::class, 'api'])->name('districts.api');
 
 	Route::get('payments/charges', [PaymentController::class, 'charges'])->name('payments.charges');
+	Route::get('payments/charges/group/{contract}', [PaymentController::class, 'groupDetails'])->name('payments.charges.group-details');
 	Route::get('contracts/charges/excel', [PaymentController::class, 'chargesExcel'])->name('payments.charges.excel');
 
 	Route::get('payments/dues/excel', [PaymentController::class, 'duesExcel'])->name('payments.dues.excel');
