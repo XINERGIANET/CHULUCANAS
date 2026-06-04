@@ -1231,7 +1231,438 @@ class WebController extends Controller
         })->where('paid', 0)
             ->count();
 
-        return view('dashboard.productividad', compact('admincredits', 'sellers', 'active_clients', 'due_clients', 'total_clients_count', 'seller_wallet', 'requested_amount', 'due_quotas'));
+        $individual_clients_count = DB::table('contracts')
+            ->leftJoin('users', 'contracts.seller_id', '=', 'users.id')
+            ->when($user->hasRole('seller'), function ($q) {
+                return $q->where('contracts.seller_id', auth()->user()->id);
+            })
+            ->when($request->credit_manager_id, function ($q, $cm_id) {
+                return $q->where('users.credit_manager_id', $cm_id);
+            })
+            ->when($request->seller_id_2, function ($q, $seller_id) {
+                return $q->where('contracts.seller_id', $seller_id);
+            })
+            ->when($request->start_date_2, function ($q, $start_date) {
+                return $q->whereDate('contracts.date', '>=', $start_date);
+            })
+            ->when($request->end_date_2, function ($q, $end_date) {
+                return $q->whereDate('contracts.date', '<=', $end_date);
+            })
+            ->where('contracts.deleted', 0)
+            ->where('contracts.paid', 0)
+            ->where('contracts.client_type', 'Personal')
+            ->selectRaw("COUNT(DISTINCT COALESCE(contracts.document, '')) as total")
+            ->value('total');
+
+        $group_clients_count = DB::table('contracts')
+            ->leftJoin('users', 'contracts.seller_id', '=', 'users.id')
+            ->when($user->hasRole('seller'), function ($q) {
+                return $q->where('contracts.seller_id', auth()->user()->id);
+            })
+            ->when($request->credit_manager_id, function ($q, $cm_id) {
+                return $q->where('users.credit_manager_id', $cm_id);
+            })
+            ->when($request->seller_id_2, function ($q, $seller_id) {
+                return $q->where('contracts.seller_id', $seller_id);
+            })
+            ->when($request->start_date_2, function ($q, $start_date) {
+                return $q->whereDate('contracts.date', '>=', $start_date);
+            })
+            ->when($request->end_date_2, function ($q, $end_date) {
+                return $q->whereDate('contracts.date', '<=', $end_date);
+            })
+            ->where('contracts.deleted', 0)
+            ->where('contracts.paid', 0)
+            ->where('contracts.client_type', 'Grupo')
+            ->selectRaw("COUNT(DISTINCT COALESCE(contracts.group_name, '')) as total")
+            ->value('total');
+
+        $historical_mora_clients_count = DB::table('contracts')
+            ->leftJoin('users', 'contracts.seller_id', '=', 'users.id')
+            ->when($user->hasRole('seller'), function ($q) {
+                return $q->where('contracts.seller_id', auth()->user()->id);
+            })
+            ->when($request->credit_manager_id, function ($q, $cm_id) {
+                return $q->where('users.credit_manager_id', $cm_id);
+            })
+            ->when($request->seller_id_2, function ($q, $seller_id) {
+                return $q->where('contracts.seller_id', $seller_id);
+            })
+            ->when($request->start_date_2, function ($q, $start_date) {
+                return $q->whereDate('contracts.date', '>=', $start_date);
+            })
+            ->when($request->end_date_2, function ($q, $end_date) {
+                return $q->whereDate('contracts.date', '<=', $end_date);
+            })
+            ->where('contracts.deleted', 0)
+            ->where('contracts.paid', 1)
+            ->whereExists(function ($query) {
+                $query->select(DB::raw(1))
+                    ->from('quotas')
+                    ->join('payments', 'payments.quota_id', '=', 'quotas.id')
+                    ->whereColumn('quotas.contract_id', 'contracts.id')
+                    ->where('payments.deleted', 0)
+                    ->whereBetween('payments.due_days', [1, 120]);
+            })
+            ->selectRaw("COUNT(DISTINCT CONCAT(COALESCE(contracts.document,''),'|',COALESCE(contracts.group_name,''))) as total")
+            ->value('total');
+
+        return view('dashboard.productividad', compact('admincredits', 'sellers', 'active_clients', 'due_clients', 'total_clients_count', 'seller_wallet', 'requested_amount', 'due_quotas', 'individual_clients_count', 'group_clients_count', 'historical_mora_clients_count'));
+    }
+
+    public function productividadCardDetails(Request $request)
+    {
+        $user = auth()->user();
+        $card = $request->card;
+        $allowedCards = ['active', 'due_120', 'individual', 'group', 'historical_mora'];
+
+        if (!in_array($card, $allowedCards, true)) {
+            return response()->json([
+                'status' => false,
+                'error' => 'Tipo de tarjeta inválido'
+            ], 422);
+        }
+
+        $creditManagerId = $request->credit_manager_id;
+        $sellerId = $request->seller_id_2;
+        $startDate = $request->start_date_2;
+        $endDate = $request->end_date_2;
+
+        $query = DB::table('contracts')
+            ->leftJoin('users', 'contracts.seller_id', '=', 'users.id')
+            ->when($user->hasRole('seller'), function ($q) {
+                return $q->where('contracts.seller_id', auth()->user()->id);
+            })
+            ->when($creditManagerId, function ($q, $cm_id) {
+                return $q->where('users.credit_manager_id', $cm_id);
+            })
+            ->when($sellerId, function ($q, $s_id) {
+                return $q->where('contracts.seller_id', $s_id);
+            })
+            ->when($startDate, function ($q, $start) {
+                return $q->whereDate('contracts.date', '>=', $start);
+            })
+            ->when($endDate, function ($q, $end) {
+                return $q->whereDate('contracts.date', '<=', $end);
+            })
+            ->where('contracts.deleted', 0);
+
+        if ($card === 'active') {
+            $query->where('contracts.paid', 0)
+                ->select(
+                    'contracts.id',
+                    'contracts.number_pagare',
+                    'contracts.name',
+                    'contracts.group_name',
+                    'contracts.client_type',
+                    'contracts.requested_amount',
+                    DB::raw("DATE_FORMAT(contracts.date, '%d/%m/%Y') as date"),
+                    'users.name as seller_name'
+                );
+        } elseif ($card === 'due_120') {
+            $cutoff = now()->subDays(120)->toDateString();
+            $query->where('contracts.paid', 0)
+                ->whereExists(function ($q) use ($cutoff) {
+                    $q->select(DB::raw(1))
+                        ->from('quotas')
+                        ->leftJoin('payments', 'payments.quota_id', 'quotas.id')
+                        ->whereColumn('quotas.contract_id', 'contracts.id')
+                        ->where(function ($sub) use ($cutoff) {
+                            $sub->where('payments.due_days', '>=', 120)
+                                ->orWhere(function ($sub2) use ($cutoff) {
+                                    $sub2->where('quotas.paid', 0)
+                                         ->whereDate('quotas.date', '<=', $cutoff);
+                                });
+                        });
+                })
+                ->select(
+                    'contracts.id',
+                    'contracts.number_pagare',
+                    'contracts.name',
+                    'contracts.group_name',
+                    'contracts.client_type',
+                    'contracts.requested_amount',
+                    DB::raw("DATE_FORMAT(contracts.date, '%d/%m/%Y') as date"),
+                    'users.name as seller_name',
+                    DB::raw("(SELECT COALESCE(MAX(payments.due_days), MAX(DATEDIFF(CURDATE(), quotas.date))) 
+                              FROM quotas 
+                              LEFT JOIN payments ON payments.quota_id = quotas.id 
+                              WHERE quotas.contract_id = contracts.id 
+                                AND (payments.due_days >= 120 OR (quotas.paid = 0 AND quotas.date <= '{$cutoff}'))) as max_due_days")
+                );
+        } elseif ($card === 'individual') {
+            $query->where('contracts.paid', 0)
+                ->where('contracts.client_type', 'Personal')
+                ->select(
+                    'contracts.id',
+                    'contracts.number_pagare',
+                    'contracts.name',
+                    'contracts.document',
+                    'contracts.requested_amount',
+                    DB::raw("DATE_FORMAT(contracts.date, '%d/%m/%Y') as date"),
+                    'users.name as seller_name'
+                );
+        } elseif ($card === 'group') {
+            $query->where('contracts.paid', 0)
+                ->where('contracts.client_type', 'Grupo')
+                ->select(
+                    'contracts.id',
+                    'contracts.number_pagare',
+                    'contracts.group_name',
+                    'contracts.people',
+                    'contracts.requested_amount',
+                    DB::raw("DATE_FORMAT(contracts.date, '%d/%m/%Y') as date"),
+                    'users.name as seller_name'
+                );
+        } elseif ($card === 'historical_mora') {
+            $query->where('contracts.paid', 1)
+                ->whereExists(function ($q) {
+                    $q->select(DB::raw(1))
+                        ->from('quotas')
+                        ->join('payments', 'payments.quota_id', '=', 'quotas.id')
+                        ->whereColumn('quotas.contract_id', 'contracts.id')
+                        ->where('payments.deleted', 0)
+                        ->whereBetween('payments.due_days', [1, 120]);
+                })
+                ->select(
+                    'contracts.id',
+                    'contracts.number_pagare',
+                    'contracts.name',
+                    'contracts.group_name',
+                    'contracts.client_type',
+                    'contracts.requested_amount',
+                    DB::raw("DATE_FORMAT(contracts.date, '%d/%m/%Y') as date"),
+                    'users.name as seller_name',
+                    DB::raw("(SELECT MAX(payments.due_days) 
+                              FROM quotas 
+                              JOIN payments ON payments.quota_id = quotas.id 
+                              WHERE quotas.contract_id = contracts.id 
+                                AND payments.deleted = 0 
+                                AND payments.due_days BETWEEN 1 AND 120) as max_due_days")
+                );
+        }
+
+        $items = $query->orderBy('contracts.date', 'desc')->get();
+
+        return response()->json([
+            'status' => true,
+            'card' => $card,
+            'items' => $items
+        ]);
+    }
+
+    public function productividadCardDetailsExport(Request $request)
+    {
+        $user = auth()->user();
+        $card = $request->card;
+        $allowedCards = ['active', 'due_120', 'individual', 'group', 'historical_mora'];
+
+        if (!in_array($card, $allowedCards, true)) {
+            abort(422, 'Tipo de tarjeta inválido');
+        }
+
+        $creditManagerId = $request->credit_manager_id;
+        $sellerId = $request->seller_id_2;
+        $startDate = $request->start_date_2;
+        $endDate = $request->end_date_2;
+
+        $query = DB::table('contracts')
+            ->leftJoin('users', 'contracts.seller_id', '=', 'users.id')
+            ->when($user->hasRole('seller'), function ($q) {
+                return $q->where('contracts.seller_id', auth()->user()->id);
+            })
+            ->when($creditManagerId, function ($q, $cm_id) {
+                return $q->where('users.credit_manager_id', $cm_id);
+            })
+            ->when($sellerId, function ($q, $s_id) {
+                return $q->where('contracts.seller_id', $s_id);
+            })
+            ->when($startDate, function ($q, $start) {
+                return $q->whereDate('contracts.date', '>=', $start);
+            })
+            ->when($endDate, function ($q, $end) {
+                return $q->whereDate('contracts.date', '<=', $end);
+            })
+            ->where('contracts.deleted', 0);
+
+        if ($card === 'active') {
+            $query->where('contracts.paid', 0)
+                ->select(
+                    'contracts.number_pagare',
+                    'contracts.name',
+                    'contracts.group_name',
+                    'contracts.client_type',
+                    'contracts.requested_amount',
+                    DB::raw("DATE_FORMAT(contracts.date, '%d/%m/%Y') as date"),
+                    'users.name as seller_name'
+                );
+            $filename = 'reporte-clientes-activos.csv';
+            $headers_csv = ['Pagaré', 'Cliente / Grupo', 'Tipo', 'Capital', 'Asesor', 'Fecha'];
+        } elseif ($card === 'due_120') {
+            $cutoff = now()->subDays(120)->toDateString();
+            $query->where('contracts.paid', 0)
+                ->whereExists(function ($q) use ($cutoff) {
+                    $q->select(DB::raw(1))
+                        ->from('quotas')
+                        ->leftJoin('payments', 'payments.quota_id', 'quotas.id')
+                        ->whereColumn('quotas.contract_id', 'contracts.id')
+                        ->where(function ($sub) use ($cutoff) {
+                            $sub->where('payments.due_days', '>=', 120)
+                                ->orWhere(function ($sub2) use ($cutoff) {
+                                    $sub2->where('quotas.paid', 0)
+                                         ->whereDate('quotas.date', '<=', $cutoff);
+                                });
+                        });
+                })
+                ->select(
+                    'contracts.number_pagare',
+                    'contracts.name',
+                    'contracts.group_name',
+                    'contracts.client_type',
+                    'contracts.requested_amount',
+                    DB::raw("DATE_FORMAT(contracts.date, '%d/%m/%Y') as date"),
+                    'users.name as seller_name',
+                    DB::raw("(SELECT COALESCE(MAX(payments.due_days), MAX(DATEDIFF(CURDATE(), quotas.date))) 
+                              FROM quotas 
+                              LEFT JOIN payments ON payments.quota_id = quotas.id 
+                              WHERE quotas.contract_id = contracts.id 
+                                AND (payments.due_days >= 120 OR (quotas.paid = 0 AND quotas.date <= '{$cutoff}'))) as max_due_days")
+                );
+            $filename = 'reporte-clientes-deuda-mas-120-dias.csv';
+            $headers_csv = ['Pagaré', 'Cliente / Grupo', 'Tipo', 'Capital', 'Asesor', 'Días de Retraso', 'Fecha'];
+        } elseif ($card === 'individual') {
+            $query->where('contracts.paid', 0)
+                ->where('contracts.client_type', 'Personal')
+                ->select(
+                    'contracts.number_pagare',
+                    'contracts.name',
+                    'contracts.document',
+                    'contracts.requested_amount',
+                    DB::raw("DATE_FORMAT(contracts.date, '%d/%m/%Y') as date"),
+                    'users.name as seller_name'
+                );
+            $filename = 'reporte-clientes-individuales.csv';
+            $headers_csv = ['Pagaré', 'Cliente', 'Documento', 'Capital', 'Asesor', 'Fecha'];
+        } elseif ($card === 'group') {
+            $query->where('contracts.paid', 0)
+                ->where('contracts.client_type', 'Grupo')
+                ->select(
+                    'contracts.number_pagare',
+                    'contracts.group_name',
+                    'contracts.people',
+                    'contracts.requested_amount',
+                    DB::raw("DATE_FORMAT(contracts.date, '%d/%m/%Y') as date"),
+                    'users.name as seller_name'
+                );
+            $filename = 'reporte-clientes-grupales.csv';
+            $headers_csv = ['Pagaré', 'Grupo', 'Integrantes', 'Capital', 'Asesor', 'Fecha'];
+        } elseif ($card === 'historical_mora') {
+            $query->where('contracts.paid', 1)
+                ->whereExists(function ($q) {
+                    $q->select(DB::raw(1))
+                        ->from('quotas')
+                        ->join('payments', 'payments.quota_id', '=', 'quotas.id')
+                        ->whereColumn('quotas.contract_id', 'contracts.id')
+                        ->where('payments.deleted', 0)
+                        ->whereBetween('payments.due_days', [1, 120]);
+                })
+                ->select(
+                    'contracts.number_pagare',
+                    'contracts.name',
+                    'contracts.group_name',
+                    'contracts.client_type',
+                    'contracts.requested_amount',
+                    DB::raw("DATE_FORMAT(contracts.date, '%d/%m/%Y') as date"),
+                    'users.name as seller_name',
+                    DB::raw("(SELECT MAX(payments.due_days) 
+                              FROM quotas 
+                              JOIN payments ON payments.quota_id = quotas.id 
+                              WHERE quotas.contract_id = contracts.id 
+                                AND payments.deleted = 0 
+                                AND payments.due_days BETWEEN 1 AND 120) as max_due_days")
+                );
+            $filename = 'reporte-clientes-finalizados-mora.csv';
+            $headers_csv = ['Pagaré', 'Cliente / Grupo', 'Tipo', 'Capital', 'Asesor', 'Máx Mora (días)', 'Fecha'];
+        }
+
+        $items = $query->orderBy('contracts.date', 'desc')->get();
+
+        $headers = [
+            'Content-type'        => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename=' . $filename,
+            'Pragma'              => 'no-cache',
+            'Cache-Control'       => 'must-revalidate, post-check=0, pre-check=0',
+            'Expires'             => '0'
+        ];
+
+        $callback = function() use ($items, $card, $headers_csv) {
+            $file = fopen('php://output', 'w');
+            
+            // Add UTF-8 BOM so Excel opens it with correct encoding
+            fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
+            
+            // Write column headers
+            fputcsv($file, $headers_csv);
+
+            foreach ($items as $item) {
+                $row = [];
+                if ($card === 'active') {
+                    $row[] = $item->number_pagare ?? '-';
+                    $row[] = ($item->client_type === 'Grupo' ? $item->group_name : $item->name) ?? '-';
+                    $row[] = $item->client_type ?? '-';
+                    $row[] = 'S/ ' . number_format($item->requested_amount, 2);
+                    $row[] = $item->seller_name ?? '-';
+                    $row[] = $item->date ?? '-';
+                } elseif ($card === 'due_120') {
+                    $row[] = $item->number_pagare ?? '-';
+                    $row[] = ($item->client_type === 'Grupo' ? $item->group_name : $item->name) ?? '-';
+                    $row[] = $item->client_type ?? '-';
+                    $row[] = 'S/ ' . number_format($item->requested_amount, 2);
+                    $row[] = $item->seller_name ?? '-';
+                    $row[] = ($item->max_due_days ?? 0) . ' días';
+                    $row[] = $item->date ?? '-';
+                } elseif ($card === 'individual') {
+                    $row[] = $item->number_pagare ?? '-';
+                    $row[] = $item->name ?? '-';
+                    $row[] = $item->document ?? '-';
+                    $row[] = 'S/ ' . number_format($item->requested_amount, 2);
+                    $row[] = $item->seller_name ?? '-';
+                    $row[] = $item->date ?? '-';
+                } elseif ($card === 'group') {
+                    $row[] = $item->number_pagare ?? '-';
+                    $row[] = $item->group_name ?? '-';
+                    
+                    // Format members list for single cell
+                    $members = '';
+                    try {
+                        $peopleArr = json_decode($item->people, true);
+                        if (is_array($peopleArr)) {
+                            $members = implode("\n", array_map(function($p) {
+                                return ($p['name'] ?? '') . ' (' . ($p['document'] ?? '') . ')';
+                            }, $peopleArr));
+                        }
+                    } catch (\Exception $e) {
+                        $members = '-';
+                    }
+                    $row[] = $members;
+                    $row[] = 'S/ ' . number_format($item->requested_amount, 2);
+                    $row[] = $item->seller_name ?? '-';
+                    $row[] = $item->date ?? '-';
+                } elseif ($card === 'historical_mora') {
+                    $row[] = $item->number_pagare ?? '-';
+                    $row[] = ($item->client_type === 'Grupo' ? $item->group_name : $item->name) ?? '-';
+                    $row[] = $item->client_type ?? '-';
+                    $row[] = 'S/ ' . number_format($item->requested_amount, 2);
+                    $row[] = $item->seller_name ?? '-';
+                    $row[] = ($item->max_due_days ?? 0) . ' días';
+                    $row[] = $item->date ?? '-';
+                }
+                fputcsv($file, $row);
+            }
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
     }
 
     public function rentabilidadCardDetails(Request $request)

@@ -33,6 +33,8 @@ Route::middleware('auth')->group(function () {
 	});
 
 	Route::get('/dashboard/productividad', [WebController::class, 'productividad'])->name('dashboard.productividad');
+	Route::get('/dashboard/productividad/card-details', [WebController::class, 'productividadCardDetails'])->name('dashboard.productividad.card-details');
+	Route::get('/dashboard/productividad/card-details/export', [WebController::class, 'productividadCardDetailsExport'])->name('dashboard.productividad.card-details.export');
 	Route::get('/dashboard/rentabilidad', [WebController::class, 'rentabilidad'])->name('dashboard.rentabilidad');
 	Route::get('/dashboard/rentabilidad/card-details', [WebController::class, 'rentabilidadCardDetails'])->name('dashboard.rentabilidad.card-details');
 	Route::get('/dashboard/indicadores', [WebController::class, 'indicadores'])->name('dashboard.indicadores');

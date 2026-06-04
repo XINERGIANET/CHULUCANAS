@@ -576,7 +576,7 @@ INSERT INTO `contracts` (`id`, `number_contract`, `number_pagare`, `client_type`
 CREATE TABLE `departments` (
   `id` bigint(20) UNSIGNED NOT NULL,
   `name` varchar(45) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_uca1400_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Volcado de datos para la tabla `departments`
@@ -620,7 +620,7 @@ CREATE TABLE `districts` (
   `name` varchar(45) DEFAULT NULL,
   `province_id` varchar(4) DEFAULT NULL,
   `department_id` varchar(2) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_uca1400_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Volcado de datos para la tabla `districts`
@@ -12345,7 +12345,7 @@ CREATE TABLE `provinces` (
   `id` bigint(20) UNSIGNED NOT NULL,
   `name` varchar(45) NOT NULL,
   `department_id` varchar(2) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_uca1400_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Volcado de datos para la tabla `provinces`

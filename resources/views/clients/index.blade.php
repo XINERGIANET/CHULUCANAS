@@ -69,11 +69,44 @@
                     </tr>
                 </thead>
                 <tbody>
+                    @php
+                        $searchTerm = request()->name;
+                        $highlight = function($text) use ($searchTerm) {
+                            if (empty($searchTerm)) {
+                                return e($text);
+                            }
+                            $escapedText = e($text);
+                            $escapedSearch = e($searchTerm);
+                            return preg_replace('/(' . preg_quote($escapedSearch, '/') . ')/iu', '<span class="bg-warning text-dark px-1 rounded" style="font-weight: bold;">$1</span>', $escapedText);
+                        };
+                    @endphp
                     @if ($clients->count() > 0)
                         @foreach ($clients as $client)
                             <tr>
                                 <td title="{!! $client->people() !!}" data-bs-toggle="tooltip" data-bs-html="true">
-                                    {{ $client->client_type == 'Personal' ? $client->name : $client->group_name }}</td>
+                                    @if ($client->client_type == 'Personal')
+                                        <strong>{!! $highlight($client->name) !!}</strong>
+                                        @if ($client->document)
+                                            <br><small class="text-muted">DNI: {!! $highlight($client->document) !!}</small>
+                                        @endif
+                                    @else
+                                        <strong>{!! $highlight($client->group_name) !!}</strong>
+                                        <div class="text-muted small mt-1" style="max-height: 150px; overflow-y: auto;">
+                                            @php
+                                                $people = $client->people ? json_decode($client->people) : [];
+                                            @endphp
+                                            @foreach ($people as $p)
+                                                @php
+                                                    $pName = $p->name ?? '';
+                                                    $pDoc = $p->document ?? '';
+                                                @endphp
+                                                @if ($pName || $pDoc)
+                                                    <div>• {!! $highlight($pName) !!} @if($pDoc) ({!! $highlight($pDoc) !!}) @endif</div>
+                                                @endif
+                                            @endforeach
+                                        </div>
+                                    @endif
+                                </td>
                                 <td>{{ $client->type() }}</td>
                                 <td>
                                     <div class="d-flex gap-2">

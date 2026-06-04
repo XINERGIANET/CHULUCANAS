@@ -319,6 +319,9 @@ class PaymentController extends Controller
                     });
                 });
             })
+            ->when($request->quota_number, function ($query, $quota_number) {
+                return $query->where('quotas.number', $quota_number);
+            })
             ->where('paid', 0);
     }
 
