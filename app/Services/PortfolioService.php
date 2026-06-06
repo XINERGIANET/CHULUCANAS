@@ -360,6 +360,7 @@ class PortfolioService
             })
             ->where('contracts.deleted', 0)
             ->whereDate('contracts.date', '<=', $asOf)
+            ->whereDate('quotas.date', '<=', $asOf)
             ->when($user && $user->hasRole('seller'), fn($q) => $q->where('contracts.seller_id', $user->id))
             ->when($user && $user->hasRole('credit_manager'), fn($q) => $q->where('users.credit_manager_id', $user->id))
             ->when($filters['credit_manager_id'] ?? null, fn($q, $id) => $q->where('users.credit_manager_id', $id))
