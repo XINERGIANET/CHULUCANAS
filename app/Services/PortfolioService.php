@@ -221,7 +221,7 @@ class PortfolioService
                 COALESCE(SUM(CASE WHEN DATEDIFF(?, q.quota_date) BETWEEN 1 AND 120 THEN q.amount - q.paid_to_cutoff ELSE 0 END), 0) as arrears_1_120,
                 COALESCE(SUM(CASE WHEN DATEDIFF(?, q.quota_date) > 120 THEN q.amount - q.paid_to_cutoff ELSE 0 END), 0) as arrears_over_120,
                 COALESCE(SUM(CASE WHEN DATEDIFF(?, q.quota_date) <= 0 THEN q.amount - q.paid_to_cutoff ELSE 0 END), 0) as current_installments,
-                COUNT(*) as pending_quotas_count,
+                COUNT(DISTINCT CONCAT(q.contract_id, '|', q.quota_number)) as pending_quotas_count,
                 COUNT(DISTINCT q.contract_id) as active_clients,
                 COUNT(DISTINCT CASE WHEN DATEDIFF(?, q.quota_date) > 120 THEN q.contract_id END) as clients_over_120,
                 COUNT(DISTINCT CASE WHEN q.client_type = 'Personal' THEN q.contract_id END) as individual_clients,
@@ -441,7 +441,7 @@ class PortfolioService
                 SUM(q.amount - q.paid_to_cutoff) as balance,
                 SUM(CASE WHEN DATEDIFF(?, q.quota_date) BETWEEN 1 AND 120 THEN q.amount - q.paid_to_cutoff ELSE 0 END) as arrears_1_120,
                 SUM(CASE WHEN DATEDIFF(?, q.quota_date) > 120 THEN q.amount - q.paid_to_cutoff ELSE 0 END) as arrears_over_120,
-                COUNT(*) as pending_quotas_count
+                COUNT(DISTINCT q.quota_number) as pending_quotas_count
             ", [$asOf, $asOf])
             ->orderByDesc('contracts.date');
     }
