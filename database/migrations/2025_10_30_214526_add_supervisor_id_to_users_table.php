@@ -13,9 +13,9 @@ class AddSupervisorIdToUsersTable extends Migration
      */
     public function up()
     {
-        Schema::table('users', function (Blueprint $table) {
-            $table->unsignedBigInteger('credit_manager_id')->nullable()->after('role');
-        });
+        // Schema::table('users', function (Blueprint $table) {
+        //     $table->unsignedBigInteger('credit_manager_id')->nullable()->after('role');
+        // });
     }
 
     public function down()
