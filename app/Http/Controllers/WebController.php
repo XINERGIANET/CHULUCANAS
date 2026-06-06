@@ -2059,6 +2059,13 @@ class WebController extends Controller
     }
 
     // Calculos para el analisis de carteras por asesor
+    public function carteraAsesorCardDetails(Request $request, PortfolioService $portfolioService)
+    {
+        return response()->json(
+            $portfolioService->cardDetails($request, auth()->user())
+        );
+    }
+
     public function carteraAsesor(Request $request, PortfolioService $portfolioService)
     {
         $user = auth()->user();

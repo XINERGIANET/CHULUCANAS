@@ -127,7 +127,8 @@
                 </form>
                 <div class="row">
                     <div class="col-md-6">
-                        <div class="card mb-4">
+                        <div class="card mb-4 js-portfolio-card" role="button" tabindex="0"
+                            data-card="gross_portfolio" data-title="Detalle de cartera bruta">
                             <div class="card-body text-center">
                                 <h5 class="card-title">Cartera bruta</h5>
                                 <span class="block fs-1 text-center fw-semibold">S/
@@ -136,7 +137,8 @@
                         </div>
                     </div>
                     <div class="col-md-6">
-                        <div class="card mb-4">
+                        <div class="card mb-4 js-portfolio-card" role="button" tabindex="0"
+                            data-card="current_portfolio" data-title="Detalle de cartera actual">
                             <div class="card-body text-center">
                                 <h5 class="card-title">Cartera actual</h5>
                                 <span class="block fs-1 text-center fw-semibold">S/
@@ -145,16 +147,18 @@
                         </div>
                     </div>
                     <div class="col-md-6">
-                        <div class="card mb-4">
+                        <div class="card mb-4 js-portfolio-card" role="button" tabindex="0"
+                            data-card="arrears_1_120" data-title="Detalle de mora 1 a 120 dias">
                             <div class="card-body text-center">
                                 <h5 class="card-title">Mora(<120 dias)</h5>
-                                        <span class="block fs-1 text-center fw-semibold">S/
-                                            {{ number_format($due_clients, 2) }}</span>
+                                <span class="block fs-1 text-center fw-semibold">S/
+                                    {{ number_format($due_clients, 2) }}</span>
                             </div>
                         </div>
                     </div>
                     <div class="col-md-6">
-                        <div class="card mb-4">
+                        <div class="card mb-4 js-portfolio-card" role="button" tabindex="0"
+                            data-card="arrears_over_120" data-title="Detalle de mora mayor a 120 dias">
                             <div class="card-body text-center">
                                 <h5 class="card-title">Mora(>121 dias)</h5>
                                 <span class="block fs-1 text-center fw-semibold">S/{{ number_format($seller_wallet, 2) }}</span>
@@ -162,16 +166,17 @@
                         </div>
                     </div>
                     <div class="col-md-6">
-                        <div class="card mb-4">
+                        <div class="card mb-4 js-portfolio-card" role="button" tabindex="0"
+                            data-card="arrears_total" data-title="Detalle de mora total">
                             <div class="card-body text-center">
                                 <h5 class="card-title">Mora total</h5>
-                                <span
-                                    class="block fs-1 text-center fw-semibold">S/{{ number_format($requested_amount, 2) }}</span>
+                                <span class="block fs-1 text-center fw-semibold">S/{{ number_format($requested_amount, 2) }}</span>
                             </div>
                         </div>
                     </div>
                     <div class="col-md-6 ">
-                        <div class="card mb-4">
+                        <div class="card mb-4 js-portfolio-card" role="button" tabindex="0"
+                            data-card="arrears_percent" data-title="Detalle de porcentaje de mora">
                             <div class="card-body text-center">
                                 <h5 class="card-title">% de mora</h5>
                                 <span class="block fs-1 text-center fw-semibold">{{ number_format($due_quotas, 2) }}%</span>
@@ -179,7 +184,8 @@
                         </div>
                     </div>
                     <div class="col-md-6">
-                        <div class="card mb-4">
+                        <div class="card mb-4 js-portfolio-card" role="button" tabindex="0"
+                            data-card="active_clients" data-title="Detalle de clientes activos">
                             <div class="card-body text-center">
                                 <h5 class="card-title">Clientes activos</h5>
                                 <span class="block fs-1 text-center fw-semibold">{{ number_format($cutoff['active_clients'] ?? 0) }}</span>
@@ -187,7 +193,8 @@
                         </div>
                     </div>
                     <div class="col-md-6">
-                        <div class="card mb-4">
+                        <div class="card mb-4 js-portfolio-card" role="button" tabindex="0"
+                            data-card="clients_over_120" data-title="Detalle de clientes con deuda mayor a 120 dias">
                             <div class="card-body text-center">
                                 <h5 class="card-title">Clientes con deuda (&gt;120 dias)</h5>
                                 <span class="block fs-1 text-center fw-semibold">{{ number_format($cutoff['clients_over_120'] ?? 0) }}</span>
@@ -195,7 +202,8 @@
                         </div>
                     </div>
                     <div class="col-md-6">
-                        <div class="card mb-4">
+                        <div class="card mb-4 js-portfolio-card" role="button" tabindex="0"
+                            data-card="individual_group_clients" data-title="Detalle de clientes individuales y grupales">
                             <div class="card-body text-center">
                                 <h5 class="card-title">Clientes individuales / grupales</h5>
                                 <span class="block fs-1 text-center fw-semibold">
@@ -205,7 +213,8 @@
                         </div>
                     </div>
                     <div class="col-md-6">
-                        <div class="card mb-4">
+                        <div class="card mb-4 js-portfolio-card" role="button" tabindex="0"
+                            data-card="finished_clients_with_arrears_1_120" data-title="Detalle de clientes finalizados con mora 1 a 120 dias">
                             <div class="card-body text-center">
                                 <h5 class="card-title">Clientes finalizados con mora (1-120 dias)</h5>
                                 <span class="block fs-1 text-center fw-semibold">{{ number_format($cutoff['finished_clients_with_arrears_1_120'] ?? 0) }}</span>
@@ -213,7 +222,8 @@
                         </div>
                     </div>
                     <div class="col-md-6">
-                        <div class="card mb-4">
+                        <div class="card mb-4 js-portfolio-card" role="button" tabindex="0"
+                            data-card="disbursed_amount" data-title="Detalle de monto desembolsado">
                             <div class="card-body text-center">
                                 <h5 class="card-title">Monto desembolsado</h5>
                                 <span class="block fs-1 text-center fw-semibold">S/{{ number_format($cutoff['disbursed_amount'] ?? 0, 2) }}</span>
@@ -221,7 +231,8 @@
                         </div>
                     </div>
                     <div class="col-md-6">
-                        <div class="card mb-4">
+                        <div class="card mb-4 js-portfolio-card" role="button" tabindex="0"
+                            data-card="pending_quotas_count" data-title="Detalle de cuotas por pagar">
                             <div class="card-body text-center">
                                 <h5 class="card-title"># de cuotas por pagar</h5>
                                 <span class="block fs-1 text-center fw-semibold">{{ number_format($cutoff['pending_quotas_count'] ?? 0) }}</span>
@@ -233,7 +244,8 @@
                     <h3 class="mb-3">Evolucion de cartera</h3>
                     <div class="row">
                         <div class="col-md-6">
-                            <div class="card mb-4">
+                            <div class="card mb-4 js-portfolio-card" role="button" tabindex="0"
+                                data-card="evolution_initial" data-title="Detalle de saldo inicial">
                                 <div class="card-body text-center">
                                     <h5 class="card-title">Saldo inicial</h5>
                                     <span class="block fs-1 text-center fw-semibold">S/{{ number_format($evolution['initial_balance'], 2) }}</span>
@@ -241,7 +253,8 @@
                             </div>
                         </div>
                         <div class="col-md-6">
-                            <div class="card mb-4">
+                            <div class="card mb-4 js-portfolio-card" role="button" tabindex="0"
+                                data-card="evolution_increments" data-title="Detalle de incrementos">
                                 <div class="card-body text-center">
                                     <h5 class="card-title">Incrementos</h5>
                                     <span class="block fs-1 text-center fw-semibold">S/{{ number_format($evolution['increments'], 2) }}</span>
@@ -250,7 +263,8 @@
                             </div>
                         </div>
                         <div class="col-md-6">
-                            <div class="card mb-4">
+                            <div class="card mb-4 js-portfolio-card" role="button" tabindex="0"
+                                data-card="evolution_reductions" data-title="Detalle de reducciones">
                                 <div class="card-body text-center">
                                     <h5 class="card-title">Reducciones</h5>
                                     <span class="block fs-1 text-center fw-semibold">S/{{ number_format($evolution['reductions'], 2) }}</span>
@@ -259,7 +273,8 @@
                             </div>
                         </div>
                         <div class="col-md-6">
-                            <div class="card mb-4">
+                            <div class="card mb-4 js-portfolio-card" role="button" tabindex="0"
+                                data-card="evolution_final" data-title="Detalle de cartera actual calculada">
                                 <div class="card-body text-center">
                                     <h5 class="card-title">Cartera actual calculada</h5>
                                     <span class="block fs-1 text-center fw-semibold">S/{{ number_format($evolution['final_balance'], 2) }}</span>
@@ -270,6 +285,280 @@
                 @endif
             </div>
         </div>
+
+        <div class="modal fade" id="portfolioCardModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-xl modal-dialog-scrollable">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <div>
+                            <h5 class="modal-title" id="portfolioCardModalTitle">Detalle</h5>
+                            <div class="text-muted small">Registros: <span id="portfolioCardTotal">0</span></div>
+                        </div>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped align-middle">
+                                <thead id="portfolioCardTableHead"></thead>
+                                <tbody id="portfolioCardTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     @endif
 
+@endsection
+
+@section('scripts')
+    <script>
+        (function() {
+            $('.js-portfolio-card').css('cursor', 'pointer');
+
+            function escapeHtml(value) {
+                if (value === null || value === undefined) return '';
+                return String(value)
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#039;');
+            }
+
+            function money(value) {
+                return 'S/' + parseFloat(value || 0).toFixed(2);
+            }
+
+            function clientName(item) {
+                return item.client_type === 'Grupo'
+                    ? (item.group_name || '-')
+                    : (item.name || item.person_name || '-');
+            }
+
+            function setLoading() {
+                $('#portfolioCardTableHead').html('');
+                $('#portfolioCardTableBody').html(`
+                    <tr>
+                        <td class="text-center">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Cargando...</span>
+                            </div>
+                        </td>
+                    </tr>
+                `);
+            }
+
+            function emptyRow(cols) {
+                return `<tr><td colspan="${cols}" class="text-center">No se encontraron registros</td></tr>`;
+            }
+
+            function renderQuotas(items) {
+                $('#portfolioCardTableHead').html(`
+                    <tr>
+                        <th>Pagare</th>
+                        <th>Cliente / Grupo</th>
+                        <th>Persona</th>
+                        <th>Asesor</th>
+                        <th>Cuota</th>
+                        <th>Fecha cuota</th>
+                        <th>Dias mora</th>
+                        <th>Monto cuota</th>
+                        <th>Pagado al corte</th>
+                        <th>Saldo</th>
+                    </tr>
+                `);
+
+                var rows = (items || []).map(function(item) {
+                    return `
+                        <tr>
+                            <td>${escapeHtml(item.number_pagare || '-')}</td>
+                            <td>${escapeHtml(clientName(item))}</td>
+                            <td>${escapeHtml(item.person_name || item.person_document || '-')}</td>
+                            <td>${escapeHtml(item.seller_name || '-')}</td>
+                            <td>${escapeHtml(item.quota_number || '-')}</td>
+                            <td>${escapeHtml(item.quota_date || '-')}</td>
+                            <td>${escapeHtml(item.due_days || 0)}</td>
+                            <td>${money(item.quota_amount)}</td>
+                            <td>${money(item.paid_to_cutoff)}</td>
+                            <td>${money(item.balance)}</td>
+                        </tr>
+                    `;
+                }).join('');
+
+                $('#portfolioCardTableBody').html(rows || emptyRow(10));
+            }
+
+            function renderClients(items) {
+                $('#portfolioCardTableHead').html(`
+                    <tr>
+                        <th>Pagare</th>
+                        <th>Cliente / Grupo</th>
+                        <th>Tipo</th>
+                        <th>Asesor</th>
+                        <th>Fecha contrato</th>
+                        <th>Capital</th>
+                        <th>Saldo</th>
+                        <th>Mora 1-120</th>
+                        <th>Mora >120</th>
+                        <th>Cuotas pendientes</th>
+                    </tr>
+                `);
+
+                var rows = (items || []).map(function(item) {
+                    return `
+                        <tr>
+                            <td>${escapeHtml(item.number_pagare || '-')}</td>
+                            <td>${escapeHtml(clientName(item))}</td>
+                            <td>${escapeHtml(item.client_type || '-')}</td>
+                            <td>${escapeHtml(item.seller_name || '-')}</td>
+                            <td>${escapeHtml(item.date || '-')}</td>
+                            <td>${money(item.requested_amount)}</td>
+                            <td>${money(item.balance)}</td>
+                            <td>${money(item.arrears_1_120)}</td>
+                            <td>${money(item.arrears_over_120)}</td>
+                            <td>${escapeHtml(item.pending_quotas_count || 0)}</td>
+                        </tr>
+                    `;
+                }).join('');
+
+                $('#portfolioCardTableBody').html(rows || emptyRow(10));
+            }
+
+            function renderContracts(items) {
+                $('#portfolioCardTableHead').html(`
+                    <tr>
+                        <th>Pagare</th>
+                        <th>Cliente / Grupo</th>
+                        <th>Tipo</th>
+                        <th>Asesor</th>
+                        <th>Fecha</th>
+                        <th>Capital</th>
+                        <th>Interes</th>
+                        <th>Total</th>
+                        <th>Max mora</th>
+                    </tr>
+                `);
+
+                var rows = (items || []).map(function(item) {
+                    return `
+                        <tr>
+                            <td>${escapeHtml(item.number_pagare || '-')}</td>
+                            <td>${escapeHtml(clientName(item))}</td>
+                            <td>${escapeHtml(item.client_type || '-')}</td>
+                            <td>${escapeHtml(item.seller_name || '-')}</td>
+                            <td>${escapeHtml(item.date || '-')}</td>
+                            <td>${money(item.requested_amount)}</td>
+                            <td>${money(item.interest)}</td>
+                            <td>${money(item.payable_amount || item.requested_amount)}</td>
+                            <td>${escapeHtml(item.max_due_days || '-')}</td>
+                        </tr>
+                    `;
+                }).join('');
+
+                $('#portfolioCardTableBody').html(rows || emptyRow(9));
+            }
+
+            function renderEvolution(items) {
+                $('#portfolioCardTableHead').html(`
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Incrementos</th>
+                        <th>Pagos</th>
+                        <th>Deterioro >120</th>
+                        <th>Saldo</th>
+                    </tr>
+                `);
+
+                var rows = (items || []).map(function(item) {
+                    return `
+                        <tr>
+                            <td>${escapeHtml(item.date || '-')}</td>
+                            <td>${money(item.increments)}</td>
+                            <td>${money(item.payments)}</td>
+                            <td>${money(item.deteriorated_over_120)}</td>
+                            <td>${money(item.balance)}</td>
+                        </tr>
+                    `;
+                }).join('');
+
+                $('#portfolioCardTableBody').html(rows || emptyRow(5));
+            }
+
+            function renderSummary(items) {
+                $('#portfolioCardTableHead').html(`
+                    <tr>
+                        <th>Concepto</th>
+                        <th>Detalle</th>
+                        <th>Monto</th>
+                    </tr>
+                `);
+
+                var rows = (items || []).map(function(item) {
+                    return `
+                        <tr>
+                            <td>${escapeHtml(item.concept || '-')}</td>
+                            <td>${escapeHtml(item.detail || '-')}</td>
+                            <td>${money(item.amount)}</td>
+                        </tr>
+                    `;
+                }).join('');
+
+                $('#portfolioCardTableBody').html(rows || emptyRow(3));
+            }
+
+            function loadPortfolioCard(card, title) {
+                $('#portfolioCardModalTitle').text(title || 'Detalle');
+                $('#portfolioCardTotal').text('0');
+                setLoading();
+                $('#portfolioCardModal').modal('show');
+
+                $.ajax({
+                    url: "{{ route('dashboard.cartera_asesor.card-details') }}",
+                    method: 'GET',
+                    data: {
+                        card: card,
+                        credit_manager_id: $('[name="credit_manager_id"]').val() || '',
+                        seller_id_2: $('[name="seller_id_2"]').val() || '',
+                        start_date_2: $('[name="start_date_2"]').val() || '',
+                        end_date_2: $('[name="end_date_2"]').val() || ''
+                    },
+                    success: function(data) {
+                        if (!data || !data.status) {
+                            $('#portfolioCardTableBody').html('<tr><td class="text-center">No se pudo cargar el detalle</td></tr>');
+                            return;
+                        }
+
+                        $('#portfolioCardTotal').text(data.total || 0);
+
+                        if (data.type === 'quotas') {
+                            renderQuotas(data.items || []);
+                        } else if (data.type === 'clients') {
+                            renderClients(data.items || []);
+                        } else if (data.type === 'contracts') {
+                            renderContracts(data.items || []);
+                        } else if (data.type === 'evolution') {
+                            renderEvolution(data.items || []);
+                        } else {
+                            renderSummary(data.items || []);
+                        }
+                    },
+                    error: function() {
+                        $('#portfolioCardTableBody').html('<tr><td class="text-center">No se pudo cargar el detalle</td></tr>');
+                    }
+                });
+            }
+
+            $(document).on('click', '.js-portfolio-card', function() {
+                loadPortfolioCard($(this).data('card'), $(this).data('title'));
+            });
+
+            $(document).on('keypress', '.js-portfolio-card', function(e) {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    $(this).trigger('click');
+                }
+            });
+        })();
+    </script>
 @endsection

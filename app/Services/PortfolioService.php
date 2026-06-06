@@ -27,6 +27,188 @@ class PortfolioService
         ];
     }
 
+    public function cardDetails(Request $request, $user): array
+    {
+        $card = $request->card;
+        $allowed = [
+            'gross_portfolio',
+            'current_portfolio',
+            'arrears_1_120',
+            'arrears_over_120',
+            'arrears_total',
+            'arrears_percent',
+            'active_clients',
+            'clients_over_120',
+            'individual_group_clients',
+            'finished_clients_with_arrears_1_120',
+            'disbursed_amount',
+            'pending_quotas_count',
+            'evolution_initial',
+            'evolution_increments',
+            'evolution_reductions',
+            'evolution_final',
+        ];
+
+        if (!in_array($card, $allowed, true)) {
+            return [
+                'status' => false,
+                'error' => 'Tipo de tarjeta invalido',
+            ];
+        }
+
+        $cutoff = $this->date($request->end_date_2 ?: now());
+        $asOf = $cutoff->toDateString();
+        $filters = [
+            'credit_manager_id' => $request->credit_manager_id,
+            'seller_id' => $request->seller_id_2,
+        ];
+
+        if (in_array($card, ['evolution_initial', 'evolution_increments', 'evolution_reductions', 'evolution_final'], true)) {
+            if (!$request->start_date_2) {
+                return [
+                    'status' => true,
+                    'type' => 'summary',
+                    'total' => 0,
+                    'items' => [[
+                        'concept' => 'Evolucion no calculada',
+                        'detail' => 'Seleccione una fecha desde para ver el detalle diario.',
+                        'amount' => 0,
+                    ]],
+                ];
+            }
+
+            $evolution = $this->evolution($this->date($request->start_date_2), $cutoff, $filters, $user);
+
+            if ($card === 'evolution_initial') {
+                return [
+                    'status' => true,
+                    'type' => 'summary',
+                    'total' => 1,
+                    'items' => [[
+                        'concept' => 'Saldo inicial',
+                        'detail' => $evolution['start_date'],
+                        'amount' => $evolution['initial_balance'],
+                    ]],
+                ];
+            }
+
+            $items = collect($evolution['daily']);
+            if ($card === 'evolution_increments') {
+                $items = $items->filter(fn($row) => (float) $row['increments'] > 0);
+            } elseif ($card === 'evolution_reductions') {
+                $items = $items->filter(fn($row) => ((float) $row['payments'] + (float) $row['deteriorated_over_120']) > 0);
+            }
+
+            return [
+                'status' => true,
+                'type' => 'evolution',
+                'total' => $items->count(),
+                'items' => $items->values(),
+            ];
+        }
+
+        if ($card === 'disbursed_amount') {
+            $items = $this->contractsQuery($asOf, $filters, $user)
+                ->select(
+                    'contracts.number_pagare',
+                    'contracts.client_type',
+                    'contracts.name',
+                    'contracts.group_name',
+                    'contracts.requested_amount',
+                    'contracts.interest',
+                    'contracts.payable_amount',
+                    DB::raw("DATE_FORMAT(contracts.date, '%d/%m/%Y') as date"),
+                    'users.name as seller_name'
+                )
+                ->orderBy('contracts.date', 'desc')
+                ->get();
+
+            return [
+                'status' => true,
+                'type' => 'contracts',
+                'total' => $items->count(),
+                'items' => $items,
+            ];
+        }
+
+        if ($card === 'finished_clients_with_arrears_1_120') {
+            $items = $this->contractsQuery($asOf, $filters, $user)
+                ->where('contracts.paid', 1)
+                ->whereExists(function ($query) use ($asOf) {
+                    $query->select(DB::raw(1))
+                        ->from('quotas')
+                        ->join('payments', 'payments.quota_id', '=', 'quotas.id')
+                        ->whereColumn('quotas.contract_id', 'contracts.id')
+                        ->where('payments.deleted', 0)
+                        ->whereDate('payments.date', '<=', $asOf)
+                        ->whereBetween('payments.due_days', [1, 120]);
+                })
+                ->select(
+                    'contracts.number_pagare',
+                    'contracts.client_type',
+                    'contracts.name',
+                    'contracts.group_name',
+                    'contracts.requested_amount',
+                    DB::raw("DATE_FORMAT(contracts.date, '%d/%m/%Y') as date"),
+                    'users.name as seller_name',
+                    DB::raw("(SELECT MAX(payments.due_days)
+                              FROM quotas
+                              JOIN payments ON payments.quota_id = quotas.id
+                              WHERE quotas.contract_id = contracts.id
+                                AND payments.deleted = 0
+                                AND DATE(payments.date) <= '{$asOf}'
+                                AND payments.due_days BETWEEN 1 AND 120) as max_due_days")
+                )
+                ->orderBy('contracts.date', 'desc')
+                ->get();
+
+            return [
+                'status' => true,
+                'type' => 'contracts',
+                'total' => $items->count(),
+                'items' => $items,
+            ];
+        }
+
+        if (in_array($card, ['active_clients', 'clients_over_120', 'individual_group_clients'], true)) {
+            $query = $this->contractBalanceDetailsQuery($asOf, $filters, $user);
+
+            if ($card === 'clients_over_120') {
+                $query->havingRaw("SUM(CASE WHEN DATEDIFF(?, q.quota_date) > 120 THEN q.amount - q.paid_to_cutoff ELSE 0 END) > 0.009", [$asOf]);
+            }
+
+            $items = $query->get();
+
+            return [
+                'status' => true,
+                'type' => 'clients',
+                'total' => $items->count(),
+                'items' => $items,
+            ];
+        }
+
+        $query = $this->quotaBalanceDetailsQuery($asOf, $filters, $user);
+
+        if ($card === 'current_portfolio') {
+            $query->whereRaw('DATEDIFF(?, q.quota_date) <= 120', [$asOf]);
+        } elseif ($card === 'arrears_1_120' || $card === 'arrears_percent') {
+            $query->whereRaw('DATEDIFF(?, q.quota_date) BETWEEN 1 AND 120', [$asOf]);
+        } elseif ($card === 'arrears_over_120') {
+            $query->whereRaw('DATEDIFF(?, q.quota_date) > 120', [$asOf]);
+        } elseif ($card === 'arrears_total') {
+            $query->whereRaw('DATEDIFF(?, q.quota_date) > 0', [$asOf]);
+        }
+
+        $items = $query->get();
+
+        return [
+            'status' => true,
+            'type' => 'quotas',
+            'total' => $items->count(),
+            'items' => $items,
+        ];
+    }
+
     public function snapshot(Carbon $cutoff, array $filters, $user = null): array
     {
         $asOf = $cutoff->toDateString();
@@ -185,6 +367,9 @@ class PortfolioService
             ->groupBy(
                 'quotas.id',
                 'quotas.contract_id',
+                'quotas.number',
+                'quotas.person_name',
+                'quotas.person_document',
                 'quotas.amount',
                 'quotas.date',
                 'contracts.client_type'
@@ -192,11 +377,73 @@ class PortfolioService
             ->selectRaw('
                 quotas.id as quota_id,
                 quotas.contract_id,
+                quotas.number as quota_number,
+                quotas.person_name,
+                quotas.person_document,
                 contracts.client_type,
                 quotas.amount,
                 quotas.date as quota_date,
                 COALESCE(SUM(payments.amount), 0) as paid_to_cutoff
             ');
+    }
+
+    private function quotaBalanceDetailsQuery(string $asOf, array $filters, $user)
+    {
+        return DB::query()
+            ->fromSub($this->quotaSnapshotQuery($asOf, $filters, $user), 'q')
+            ->join('contracts', 'contracts.id', '=', 'q.contract_id')
+            ->leftJoin('users', 'users.id', '=', 'contracts.seller_id')
+            ->whereRaw('(q.amount - q.paid_to_cutoff) > 0.009')
+            ->selectRaw("
+                contracts.number_pagare,
+                contracts.client_type,
+                contracts.name,
+                contracts.group_name,
+                users.name as seller_name,
+                q.quota_number,
+                q.person_name,
+                q.person_document,
+                q.amount as quota_amount,
+                q.paid_to_cutoff,
+                q.amount - q.paid_to_cutoff as balance,
+                DATE_FORMAT(q.quota_date, '%d/%m/%Y') as quota_date,
+                GREATEST(DATEDIFF(?, q.quota_date), 0) as due_days
+            ", [$asOf])
+            ->orderBy('q.quota_date')
+            ->orderBy('contracts.number_pagare');
+    }
+
+    private function contractBalanceDetailsQuery(string $asOf, array $filters, $user)
+    {
+        return DB::query()
+            ->fromSub($this->quotaSnapshotQuery($asOf, $filters, $user), 'q')
+            ->join('contracts', 'contracts.id', '=', 'q.contract_id')
+            ->leftJoin('users', 'users.id', '=', 'contracts.seller_id')
+            ->whereRaw('(q.amount - q.paid_to_cutoff) > 0.009')
+            ->groupBy(
+                'contracts.id',
+                'contracts.number_pagare',
+                'contracts.client_type',
+                'contracts.name',
+                'contracts.group_name',
+                'contracts.requested_amount',
+                'contracts.date',
+                'users.name'
+            )
+            ->selectRaw("
+                contracts.number_pagare,
+                contracts.client_type,
+                contracts.name,
+                contracts.group_name,
+                contracts.requested_amount,
+                DATE_FORMAT(contracts.date, '%d/%m/%Y') as date,
+                users.name as seller_name,
+                SUM(q.amount - q.paid_to_cutoff) as balance,
+                SUM(CASE WHEN DATEDIFF(?, q.quota_date) BETWEEN 1 AND 120 THEN q.amount - q.paid_to_cutoff ELSE 0 END) as arrears_1_120,
+                SUM(CASE WHEN DATEDIFF(?, q.quota_date) > 120 THEN q.amount - q.paid_to_cutoff ELSE 0 END) as arrears_over_120,
+                COUNT(*) as pending_quotas_count
+            ", [$asOf, $asOf])
+            ->orderByDesc('contracts.date');
     }
 
     private function contractsQuery(string $asOf, array $filters, $user)
