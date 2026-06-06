@@ -12,6 +12,7 @@ use App\Models\Expense;
 use App\Models\Contract;
 use App\Models\User;
 use App\Models\Transfer;
+use App\Services\PortfolioService;
 
 class WebController extends Controller
 {
@@ -2058,11 +2059,39 @@ class WebController extends Controller
     }
 
     // Calculos para el analisis de carteras por asesor
-    public function carteraAsesor(Request $request)
+    public function carteraAsesor(Request $request, PortfolioService $portfolioService)
     {
         $user = auth()->user();
         $admincredits = User::where('role', 'credit_manager')->active()->get();
         $sellers = User::seller()->active()->get();
+
+        $portfolio = $portfolioService->dashboard($request, $user);
+        $cutoff = $portfolio['cutoff'];
+        $evolution = $portfolio['evolution'];
+
+        $cartera_bruta = $cutoff['gross_portfolio'];
+        $active_clients = $cutoff['current_portfolio'];
+        $due_clients = $cutoff['arrears_1_120'];
+        $seller_wallet = $cutoff['arrears_over_120'];
+        $requested_amount = $cutoff['arrears_total'];
+        $due_quotas = $cutoff['arrears_percent'];
+        $section = $request->section ?? 'analisis';
+
+        return view('dashboard.cartera_asesor', compact(
+            'admincredits',
+            'sellers',
+            'cartera_bruta',
+            'active_clients',
+            'due_clients',
+            'seller_wallet',
+            'requested_amount',
+            'due_quotas',
+            'portfolio',
+            'cutoff',
+            'evolution',
+            'section'
+        ));
+        /*
 
         // Fecha de referencia: end_date_2 si se filtra, sino hoy
         $referenceDate = $request->end_date_2
@@ -2183,5 +2212,6 @@ class WebController extends Controller
             'due_quotas',
             'section'
         ));
+        */
     }
 }

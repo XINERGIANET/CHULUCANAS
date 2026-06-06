@@ -102,6 +102,12 @@
                         @endif
                         <div class="col-md-6">
                             <div class="mb-3">
+                                <label class="form-label">Fecha desde</label>
+                                <input type="date" class="form-control" name="start_date_2" value="{{ request()->start_date_2 }}">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
                                 <label class="form-label">Fecha hasta</label>
                                 <input type="date" class="form-control" name="end_date_2" value="{{ request()->end_date_2 }}">
                             </div>
@@ -172,7 +178,96 @@
                             </div>
                         </div>
                     </div>
+                    <div class="col-md-6">
+                        <div class="card mb-4">
+                            <div class="card-body text-center">
+                                <h5 class="card-title">Clientes activos</h5>
+                                <span class="block fs-1 text-center fw-semibold">{{ number_format($cutoff['active_clients'] ?? 0) }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card mb-4">
+                            <div class="card-body text-center">
+                                <h5 class="card-title">Clientes con deuda (&gt;120 dias)</h5>
+                                <span class="block fs-1 text-center fw-semibold">{{ number_format($cutoff['clients_over_120'] ?? 0) }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card mb-4">
+                            <div class="card-body text-center">
+                                <h5 class="card-title">Clientes individuales / grupales</h5>
+                                <span class="block fs-1 text-center fw-semibold">
+                                    {{ number_format($cutoff['individual_clients'] ?? 0) }} / {{ number_format($cutoff['group_clients'] ?? 0) }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card mb-4">
+                            <div class="card-body text-center">
+                                <h5 class="card-title">Clientes finalizados con mora (1-120 dias)</h5>
+                                <span class="block fs-1 text-center fw-semibold">{{ number_format($cutoff['finished_clients_with_arrears_1_120'] ?? 0) }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card mb-4">
+                            <div class="card-body text-center">
+                                <h5 class="card-title">Monto desembolsado</h5>
+                                <span class="block fs-1 text-center fw-semibold">S/{{ number_format($cutoff['disbursed_amount'] ?? 0, 2) }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card mb-4">
+                            <div class="card-body text-center">
+                                <h5 class="card-title"># de cuotas por pagar</h5>
+                                <span class="block fs-1 text-center fw-semibold">{{ number_format($cutoff['pending_quotas_count'] ?? 0) }}</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
+                @if ($evolution)
+                    <h3 class="mb-3">Evolucion de cartera</h3>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card mb-4">
+                                <div class="card-body text-center">
+                                    <h5 class="card-title">Saldo inicial</h5>
+                                    <span class="block fs-1 text-center fw-semibold">S/{{ number_format($evolution['initial_balance'], 2) }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card mb-4">
+                                <div class="card-body text-center">
+                                    <h5 class="card-title">Incrementos</h5>
+                                    <span class="block fs-1 text-center fw-semibold">S/{{ number_format($evolution['increments'], 2) }}</span>
+                                    <div class="text-muted">Capital S/{{ number_format($evolution['disbursed_capital'], 2) }} / Interes S/{{ number_format($evolution['generated_interest'], 2) }}</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card mb-4">
+                                <div class="card-body text-center">
+                                    <h5 class="card-title">Reducciones</h5>
+                                    <span class="block fs-1 text-center fw-semibold">S/{{ number_format($evolution['reductions'], 2) }}</span>
+                                    <div class="text-muted">Pagos S/{{ number_format($evolution['payments'], 2) }} / Deterioro S/{{ number_format($evolution['deteriorated_over_120'], 2) }}</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card mb-4">
+                                <div class="card-body text-center">
+                                    <h5 class="card-title">Cartera actual calculada</h5>
+                                    <span class="block fs-1 text-center fw-semibold">S/{{ number_format($evolution['final_balance'], 2) }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                @endif
             </div>
         </div>
     @endif
