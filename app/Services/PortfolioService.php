@@ -174,7 +174,7 @@ class PortfolioService
             $query = $this->contractBalanceDetailsQuery($asOf, $filters, $user);
 
             if ($card === 'clients_over_120') {
-                $query->havingRaw("SUM(CASE WHEN DATEDIFF(?, q.quota_date) > 120 THEN q.amount - q.paid_to_cutoff ELSE 0 END) > 0.009", [$asOf]);
+                $query->havingRaw("SUM(CASE WHEN DATEDIFF(?, q.quota_date) > 120 THEN q.debt_balance ELSE 0 END) > 0.009", [$asOf]);
             }
 
             $items = $query->get();
@@ -215,12 +215,12 @@ class PortfolioService
         $rows = DB::query()->fromSub($this->quotaSnapshotQuery($asOf, $filters, $user), 'q');
 
         $totals = (clone $rows)
-            ->whereRaw('(q.amount - q.paid_to_cutoff) > 0.009')
+            ->whereRaw('(q.debt_balance) > 0.009')
             ->selectRaw("
-                COALESCE(SUM(q.amount - q.paid_to_cutoff), 0) as gross_portfolio,
-                COALESCE(SUM(CASE WHEN DATEDIFF(?, q.quota_date) BETWEEN 1 AND 120 THEN q.amount - q.paid_to_cutoff ELSE 0 END), 0) as arrears_1_120,
-                COALESCE(SUM(CASE WHEN DATEDIFF(?, q.quota_date) > 120 THEN q.amount - q.paid_to_cutoff ELSE 0 END), 0) as arrears_over_120,
-                COALESCE(SUM(CASE WHEN DATEDIFF(?, q.quota_date) <= 0 THEN q.amount - q.paid_to_cutoff ELSE 0 END), 0) as current_installments,
+                COALESCE(SUM(q.debt_balance), 0) as gross_portfolio,
+                COALESCE(SUM(CASE WHEN DATEDIFF(?, q.quota_date) BETWEEN 1 AND 120 THEN q.debt_balance ELSE 0 END), 0) as arrears_1_120,
+                COALESCE(SUM(CASE WHEN DATEDIFF(?, q.quota_date) > 120 THEN q.debt_balance ELSE 0 END), 0) as arrears_over_120,
+                COALESCE(SUM(CASE WHEN DATEDIFF(?, q.quota_date) <= 0 THEN q.debt_balance ELSE 0 END), 0) as current_installments,
                 COUNT(DISTINCT CONCAT(q.contract_id, '|', q.quota_number)) as pending_quotas_count,
                 COUNT(DISTINCT q.contract_id) as active_clients,
                 COUNT(DISTINCT CASE WHEN DATEDIFF(?, q.quota_date) > 120 THEN q.contract_id END) as clients_over_120,
@@ -240,7 +240,7 @@ class PortfolioService
             ->whereBetween('payments.due_days', [1, 120])
             ->select('q.contract_id')
             ->groupBy('q.contract_id')
-            ->havingRaw('SUM(q.amount - q.paid_to_cutoff) <= 0.009')
+            ->havingRaw('SUM(q.debt_balance) <= 0.009')
             ->get()
             ->count();
 
@@ -342,10 +342,10 @@ class PortfolioService
     {
         return (float) DB::query()
             ->fromSub($this->quotaSnapshotQuery($endDate, $filters, $user), 'q')
-            ->whereRaw('(q.amount - q.paid_to_cutoff) > 0.009')
+            ->whereRaw('(q.debt_balance) > 0.009')
             ->whereRaw('DATE_ADD(q.quota_date, INTERVAL 121 DAY) > ?', [$startDate])
             ->whereRaw('DATE_ADD(q.quota_date, INTERVAL 121 DAY) <= ?', [$endDate])
-            ->sum(DB::raw('q.amount - q.paid_to_cutoff'));
+            ->sum(DB::raw('q.debt_balance'));
     }
 
     private function quotaSnapshotQuery(string $asOf, array $filters, $user)
@@ -372,6 +372,7 @@ class PortfolioService
                 'quotas.person_name',
                 'quotas.person_document',
                 'quotas.amount',
+                'quotas.debt',
                 'quotas.date',
                 'contracts.client_type'
             )
@@ -383,8 +384,10 @@ class PortfolioService
                 quotas.person_document,
                 contracts.client_type,
                 quotas.amount,
+                quotas.debt,
                 quotas.date as quota_date,
-                COALESCE(SUM(payments.amount), 0) as paid_to_cutoff
+                COALESCE(SUM(payments.amount), 0) as paid_to_cutoff,
+                COALESCE(quotas.debt, quotas.amount - COALESCE(SUM(payments.amount), 0)) as debt_balance
             ');
     }
 
@@ -394,7 +397,7 @@ class PortfolioService
             ->fromSub($this->quotaSnapshotQuery($asOf, $filters, $user), 'q')
             ->join('contracts', 'contracts.id', '=', 'q.contract_id')
             ->leftJoin('users', 'users.id', '=', 'contracts.seller_id')
-            ->whereRaw('(q.amount - q.paid_to_cutoff) > 0.009')
+            ->whereRaw('(q.debt_balance) > 0.009')
             ->selectRaw("
                 contracts.number_pagare,
                 contracts.client_type,
@@ -406,7 +409,7 @@ class PortfolioService
                 q.person_document,
                 q.amount as quota_amount,
                 q.paid_to_cutoff,
-                q.amount - q.paid_to_cutoff as balance,
+                q.debt_balance as balance,
                 DATE_FORMAT(q.quota_date, '%d/%m/%Y') as quota_date,
                 GREATEST(DATEDIFF(?, q.quota_date), 0) as due_days
             ", [$asOf])
@@ -420,7 +423,7 @@ class PortfolioService
             ->fromSub($this->quotaSnapshotQuery($asOf, $filters, $user), 'q')
             ->join('contracts', 'contracts.id', '=', 'q.contract_id')
             ->leftJoin('users', 'users.id', '=', 'contracts.seller_id')
-            ->whereRaw('(q.amount - q.paid_to_cutoff) > 0.009')
+            ->whereRaw('(q.debt_balance) > 0.009')
             ->groupBy(
                 'contracts.id',
                 'contracts.number_pagare',
@@ -439,9 +442,9 @@ class PortfolioService
                 contracts.requested_amount,
                 DATE_FORMAT(contracts.date, '%d/%m/%Y') as date,
                 users.name as seller_name,
-                SUM(q.amount - q.paid_to_cutoff) as balance,
-                SUM(CASE WHEN DATEDIFF(?, q.quota_date) BETWEEN 1 AND 120 THEN q.amount - q.paid_to_cutoff ELSE 0 END) as arrears_1_120,
-                SUM(CASE WHEN DATEDIFF(?, q.quota_date) > 120 THEN q.amount - q.paid_to_cutoff ELSE 0 END) as arrears_over_120,
+                SUM(q.debt_balance) as balance,
+                SUM(CASE WHEN DATEDIFF(?, q.quota_date) BETWEEN 1 AND 120 THEN q.debt_balance ELSE 0 END) as arrears_1_120,
+                SUM(CASE WHEN DATEDIFF(?, q.quota_date) > 120 THEN q.debt_balance ELSE 0 END) as arrears_over_120,
                 COUNT(DISTINCT q.quota_number) as pending_quotas_count
             ", [$asOf, $asOf])
             ->orderByDesc('contracts.date');

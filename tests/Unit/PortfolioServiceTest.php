@@ -34,7 +34,7 @@ class PortfolioServiceTest extends TestCase
 
         DB::connection('sqlite')->statement('CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, credit_manager_id INTEGER NULL, role TEXT NULL)');
         DB::connection('sqlite')->statement('CREATE TABLE contracts (id INTEGER PRIMARY KEY AUTOINCREMENT, deleted INTEGER DEFAULT 0, date TEXT NOT NULL, seller_id INTEGER NULL, client_type TEXT NULL, number_pagare TEXT NULL, name TEXT NULL, group_name TEXT NULL, requested_amount REAL DEFAULT 0, interest REAL DEFAULT 0, payable_amount REAL DEFAULT 0, paid INTEGER DEFAULT 0)');
-        DB::connection('sqlite')->statement('CREATE TABLE quotas (id INTEGER PRIMARY KEY AUTOINCREMENT, contract_id INTEGER NOT NULL, number INTEGER NOT NULL, person_name TEXT NULL, person_document TEXT NULL, amount REAL DEFAULT 0, date TEXT NOT NULL, paid INTEGER DEFAULT 0)');
+        DB::connection('sqlite')->statement('CREATE TABLE quotas (id INTEGER PRIMARY KEY AUTOINCREMENT, contract_id INTEGER NOT NULL, number INTEGER NOT NULL, person_name TEXT NULL, person_document TEXT NULL, amount REAL DEFAULT 0, debt REAL DEFAULT 0, date TEXT NOT NULL, paid INTEGER DEFAULT 0)');
         DB::connection('sqlite')->statement('CREATE TABLE payments (id INTEGER PRIMARY KEY AUTOINCREMENT, quota_id INTEGER NOT NULL, amount REAL DEFAULT 0, date TEXT NOT NULL, due_days INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0)');
 
         DB::connection('sqlite')->table('users')->insert([
@@ -60,8 +60,8 @@ class PortfolioServiceTest extends TestCase
         ]);
 
         DB::connection('sqlite')->table('quotas')->insert([
-            ['id' => 1, 'contract_id' => 1, 'number' => 1, 'person_name' => 'Cliente Uno', 'person_document' => '11111111', 'amount' => 100, 'date' => '2026-05-01', 'paid' => 0],
-            ['id' => 2, 'contract_id' => 1, 'number' => 2, 'person_name' => 'Cliente Uno', 'person_document' => '11111111', 'amount' => 200, 'date' => '2026-06-15', 'paid' => 0],
+            ['id' => 1, 'contract_id' => 1, 'number' => 1, 'person_name' => 'Cliente Uno', 'person_document' => '11111111', 'amount' => 100, 'debt' => 100, 'date' => '2026-05-01', 'paid' => 0],
+            ['id' => 2, 'contract_id' => 1, 'number' => 2, 'person_name' => 'Cliente Uno', 'person_document' => '11111111', 'amount' => 200, 'debt' => 200, 'date' => '2026-06-15', 'paid' => 0],
         ]);
     }
 
