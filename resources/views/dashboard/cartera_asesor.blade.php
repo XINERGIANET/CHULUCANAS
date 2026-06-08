@@ -102,12 +102,6 @@
                         @endif
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label class="form-label">Fecha desde</label>
-                                <input type="date" class="form-control" name="start_date_2" value="{{ request()->start_date_2 }}">
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
                                 <label class="form-label">Fecha hasta</label>
                                 <input type="date" class="form-control" name="end_date_2" value="{{ request()->end_date_2 }}">
                             </div>
@@ -520,7 +514,6 @@
                         card: card,
                         credit_manager_id: $('[name="credit_manager_id"]').val() || '',
                         seller_id_2: $('[name="seller_id_2"]').val() || '',
-                        start_date_2: $('[name="start_date_2"]').val() || '',
                         end_date_2: $('[name="end_date_2"]').val() || ''
                     },
                     success: function(data) {

@@ -10,21 +10,18 @@ class PortfolioService
 {
     public function dashboard(Request $request, $user): array
     {
-        $cutoff = $this->date($request->end_date_2 ?: now());
-        $start = $request->start_date_2 ? $this->date($request->start_date_2) : null;
+        $milestone = $this->date($request->end_date_2 ?: now());
 
         $filters = [
             'credit_manager_id' => $request->credit_manager_id,
             'seller_id' => $request->seller_id_2,
-            'start_date' => $request->start_date_2,
         ];
 
-        $snapshot = $this->snapshot($cutoff, $filters, $user);
-        $evolution = $start ? $this->evolution($start, $cutoff, $filters, $user) : null;
+        $snapshot = $this->snapshot($milestone, $filters, $user);
 
         return [
             'cutoff' => $snapshot,
-            'evolution' => $evolution,
+            'evolution' => null,
         ];
     }
 
@@ -57,12 +54,11 @@ class PortfolioService
             ];
         }
 
-        $cutoff = $this->date($request->end_date_2 ?: now());
-        $asOf = $cutoff->toDateString();
+        $milestone = $this->date($request->end_date_2 ?: now());
+        $asOf = $milestone->toDateString();
         $filters = [
             'credit_manager_id' => $request->credit_manager_id,
             'seller_id' => $request->seller_id_2,
-            'start_date' => $request->start_date_2,
         ];
 
         if (in_array($card, ['evolution_initial', 'evolution_increments', 'evolution_reductions', 'evolution_final'], true)) {
@@ -361,8 +357,7 @@ class PortfolioService
                     ->whereDate('payments.date', '<=', $asOf);
             })
             ->where('contracts.deleted', 0)
-            ->whereDate('quotas.date', '<=', $asOf)
-            ->when($filters['start_date'] ?? null, fn($q, $startDate) => $q->whereDate('quotas.date', '>=', $startDate))
+            ->whereDate('quotas.date', '>', $asOf)
             ->when($user && $user->hasRole('seller'), fn($q) => $q->where('contracts.seller_id', $user->id))
             ->when($user && $user->hasRole('credit_manager'), fn($q) => $q->where('users.credit_manager_id', $user->id))
             ->when($filters['credit_manager_id'] ?? null, fn($q, $id) => $q->where('users.credit_manager_id', $id))
