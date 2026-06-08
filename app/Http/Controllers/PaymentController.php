@@ -369,8 +369,16 @@ class PaymentController extends Controller
                 });
             })
             ->when($request->name, function ($query, $name) {
-                return $query->whereHas('contract', function ($query) use ($name) {
-                    return $query->where('name', 'like', '%' . $name . '%');
+                return $query->where(function ($query) use ($name) {
+                    $query->whereHas('contract', function ($query) use ($name) {
+                        $query->where(function ($query) use ($name) {
+                            $query->where('name', 'like', '%' . $name . '%')
+                                ->orWhere('group_name', 'like', '%' . $name . '%')
+                                ->orWhere('document', 'like', '%' . $name . '%')
+                                ->orWhere('people', 'like', '%' . $name . '%');
+                        });
+                    })->orWhere('person_name', 'like', '%' . $name . '%')
+                        ->orWhere('person_document', 'like', '%' . $name . '%');
                 });
             })
             ->when($request->seller_id, function ($query, $seller_id) {
