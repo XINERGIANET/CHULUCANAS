@@ -11,9 +11,9 @@
             auth()->user()->hasRole('seller')
         )
         <div class="row mb-4" id="content-analisis">
-            <div class="col-md-6">
+            <div class="col-12">
                 <form class="mb-4">
-                    <div class="row">
+                    <div class="row align-items-end g-2">
                         @if (
                                 auth()->user()->hasRole('admin') ||
                                 auth()->user()->hasRole('credit') ||
@@ -22,8 +22,8 @@
                                 auth()->user()->hasRole('seller')
                             )
                             @if (auth()->user()->hasRole('admin_credit'))
-                                <div class="col-md-6">
-                                    <div class="mb-3">
+                                <div class="col-12 col-md-6 col-lg-3">
+                                    <div class="mb-0">
                                         <label class="form-label">Jefe de Crédito</label>
                                         <select class="form-select js-credit-manager" name="credit_manager_id">
                                             <option value="">Todos</option>
@@ -34,8 +34,8 @@
                                         </select>
                                     </div>
                                 </div>
-                                <div class="col-md-6">
-                                    <div class="mb-3">
+                                <div class="col-12 col-md-6 col-lg-3">
+                                    <div class="mb-0">
                                         <label class="form-label">Asesor comercial</label>
                                         <select class="form-select js-seller-select" name="seller_id_2">
                                             <option value="">Seleccionar</option>
@@ -46,25 +46,23 @@
                                     </div>
                                 </div>
                             @elseif (auth()->user()->hasRole('seller'))
-                                {{-- Seller: muestra su propio nombre fijo --}}
-                                <div class="col-md-12">
-                                    <div class="mb-3">
+                                <div class="col-12 col-md-6 col-lg-4">
+                                    <div class="mb-0">
                                         <label class="form-label">Asesor comercial</label>
                                         <input type="text" class="form-control" value="{{ auth()->user()->name }}" disabled>
                                         <input type="hidden" name="seller_id_2" value="{{ auth()->user()->id }}">
                                     </div>
                                 </div>
                             @elseif (auth()->user()->hasRole('credit_manager'))
-                                {{-- Jefe de crédito: muestra su propio nombre fijo + selector de asesor filtrado a sus asesores --}}
-                                <div class="col-md-6">
-                                    <div class="mb-3">
+                                <div class="col-12 col-md-6 col-lg-3">
+                                    <div class="mb-0">
                                         <label class="form-label">Jefe de crédito</label>
                                         <input type="text" class="form-control" value="{{ auth()->user()->name }}" disabled>
                                         <input type="hidden" name="credit_manager_id" value="{{ auth()->user()->id }}">
                                     </div>
                                 </div>
-                                <div class="col-md-6">
-                                    <div class="mb-3">
+                                <div class="col-12 col-md-6 col-lg-3">
+                                    <div class="mb-0">
                                         <label class="form-label">Asesor comercial</label>
                                         <select class="form-select" name="seller_id_2">
                                             <option value="">Todos</option>
@@ -75,9 +73,8 @@
                                     </div>
                                 </div>
                             @else
-                                {{-- Admin y otros: dropdowns completos --}}
-                                <div class="col-md-6">
-                                    <div class="mb-3">
+                                <div class="col-12 col-md-6 col-lg-3">
+                                    <div class="mb-0">
                                         <label class="form-label">Jefe de crédito</label>
                                         <select class="form-select js-credit-manager" name="credit_manager_id">
                                             <option value="">Seleccionar</option>
@@ -87,8 +84,8 @@
                                         </select>
                                     </div>
                                 </div>
-                                <div class="col-md-6">
-                                    <div class="mb-3">
+                                <div class="col-12 col-md-6 col-lg-3">
+                                    <div class="mb-0">
                                         <label class="form-label">Asesor comercial</label>
                                         <select class="form-select js-seller-select" name="seller_id_2">
                                             <option value="">Seleccionar</option>
@@ -100,27 +97,30 @@
                                 </div>
                             @endif
                         @endif
-                        <div class="col-md-6">
-                            <div class="mb-3">
+                        <div class="col-12 col-md-6 col-lg-2">
+                            <div class="mb-0">
                                 <label class="form-label">Fecha hasta</label>
                                 <input type="date" class="form-control" name="end_date_2" value="{{ request()->end_date_2 }}">
                             </div>
                         </div>
+                        <div class="col-12 col-md-6 col-lg-auto">
+                            <input type="hidden" name="start_date_1" value="{{ request()->start_date_1 }}">
+                            <input type="hidden" name="end_date_1" value="{{ request()->end_date_1 }}">
+                            <input type="hidden" name="start_date_3" value="{{ request()->start_date_3 }}">
+                            <input type="hidden" name="end_date_3" value="{{ request()->end_date_3 }}">
+                            <input type="hidden" name="start_date_4" value="{{ request()->start_date_4 }}">
+                            <input type="hidden" name="end_date_4" value="{{ request()->end_date_4 }}">
+                            <input type="hidden" name="section" class="js-section-input"
+                                value="{{ $section ?? (request()->section ?? 'efectivo') }}">
+                            <div class="d-flex gap-2 mb-0">
+                                <button type="submit" class="btn btn-primary"><i class="ti ti-filter icon"></i> Filtrar</button>
+                                <button type="button" class="btn btn-danger" onclick="resetForm()"><i class="ti ti-eraser icon"></i> Limpiar</button>
+                            </div>
+                        </div>
                     </div>
-                    <input type="hidden" name="start_date_1" value="{{ request()->start_date_1 }}">
-                    <input type="hidden" name="end_date_1" value="{{ request()->end_date_1 }}">
-                    <input type="hidden" name="start_date_3" value="{{ request()->start_date_3 }}">
-                    <input type="hidden" name="end_date_3" value="{{ request()->end_date_3 }}">
-                    <input type="hidden" name="start_date_4" value="{{ request()->start_date_4 }}">
-                    <input type="hidden" name="end_date_4" value="{{ request()->end_date_4 }}">
-                    <input type="hidden" name="section" class="js-section-input"
-                        value="{{ $section ?? (request()->section ?? 'efectivo') }}">
-                    <button type="submit" class="btn btn-primary"><i class="ti ti-filter icon"></i> Filtrar</button>
-                    <button type="button" class="btn btn-danger ms-2" onclick="resetForm()"> <i class="ti ti-eraser icon"></i>
-                        Limpiar</button>
                 </form>
-                <div class="row">
-                    <div class="col-md-6">
+                <div class="row g-3">
+                    <div class="col-6 col-md-4 col-xl-2">
                         <div class="card mb-4 js-portfolio-card" role="button" tabindex="0"
                             data-card="gross_portfolio" data-title="Detalle de cartera bruta">
                             <div class="card-body text-center">
@@ -130,7 +130,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-6">
+                    <div class="col-6 col-md-4 col-xl-2">
                         <div class="card mb-4 js-portfolio-card" role="button" tabindex="0"
                             data-card="current_portfolio" data-title="Detalle de cartera actual">
                             <div class="card-body text-center">
@@ -140,7 +140,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-6">
+                    <div class="col-6 col-md-4 col-xl-2">
                         <div class="card mb-4 js-portfolio-card" role="button" tabindex="0"
                             data-card="arrears_1_120" data-title="Detalle de mora 1 a 120 dias">
                             <div class="card-body text-center">
@@ -150,7 +150,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-6">
+                    <div class="col-6 col-md-4 col-xl-2">
                         <div class="card mb-4 js-portfolio-card" role="button" tabindex="0"
                             data-card="arrears_over_120" data-title="Detalle de mora mayor a 120 dias">
                             <div class="card-body text-center">
@@ -159,7 +159,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-6">
+                    <div class="col-6 col-md-4 col-xl-2">
                         <div class="card mb-4 js-portfolio-card" role="button" tabindex="0"
                             data-card="arrears_total" data-title="Detalle de mora total">
                             <div class="card-body text-center">
@@ -168,7 +168,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-6 ">
+                    <div class="col-6 col-md-4 col-xl-2">
                         <div class="card mb-4 js-portfolio-card" role="button" tabindex="0"
                             data-card="arrears_percent" data-title="Detalle de porcentaje de mora">
                             <div class="card-body text-center">
@@ -177,7 +177,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-6">
+                    <div class="col-6 col-md-4 col-xl-2">
                         <div class="card mb-4 js-portfolio-card" role="button" tabindex="0"
                             data-card="active_clients" data-title="Detalle de clientes activos">
                             <div class="card-body text-center">
@@ -186,7 +186,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-6">
+                    <div class="col-6 col-md-4 col-xl-2">
                         <div class="card mb-4 js-portfolio-card" role="button" tabindex="0"
                             data-card="clients_over_120" data-title="Detalle de clientes con deuda mayor a 120 dias">
                             <div class="card-body text-center">
@@ -195,7 +195,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-6">
+                    <div class="col-6 col-md-4 col-xl-2">
                         <div class="card mb-4 js-portfolio-card" role="button" tabindex="0"
                             data-card="individual_group_clients" data-title="Detalle de clientes individuales y grupales">
                             <div class="card-body text-center">
@@ -206,7 +206,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-6">
+                    <div class="col-6 col-md-4 col-xl-2">
                         <div class="card mb-4 js-portfolio-card" role="button" tabindex="0"
                             data-card="finished_clients_with_arrears_1_120" data-title="Detalle de clientes finalizados con mora 1 a 120 dias">
                             <div class="card-body text-center">
@@ -215,7 +215,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-6">
+                    <div class="col-6 col-md-4 col-xl-2">
                         <div class="card mb-4 js-portfolio-card" role="button" tabindex="0"
                             data-card="disbursed_amount" data-title="Detalle de monto desembolsado">
                             <div class="card-body text-center">
@@ -224,7 +224,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-6">
+                    <div class="col-6 col-md-4 col-xl-2">
                         <div class="card mb-4 js-portfolio-card" role="button" tabindex="0"
                             data-card="pending_quotas_count" data-title="Detalle de cuotas por pagar">
                             <div class="card-body text-center">
@@ -236,8 +236,8 @@
                 </div>
                 @if ($evolution)
                     <h3 class="mb-3">Evolucion de cartera</h3>
-                    <div class="row">
-                        <div class="col-md-6">
+                    <div class="row g-3">
+                        <div class="col-6 col-md-6 col-lg-3">
                             <div class="card mb-4 js-portfolio-card" role="button" tabindex="0"
                                 data-card="evolution_initial" data-title="Detalle de saldo inicial">
                                 <div class="card-body text-center">
@@ -246,7 +246,7 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-6 col-md-6 col-lg-3">
                             <div class="card mb-4 js-portfolio-card" role="button" tabindex="0"
                                 data-card="evolution_increments" data-title="Detalle de incrementos">
                                 <div class="card-body text-center">
@@ -256,7 +256,7 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-6 col-md-6 col-lg-3">
                             <div class="card mb-4 js-portfolio-card" role="button" tabindex="0"
                                 data-card="evolution_reductions" data-title="Detalle de reducciones">
                                 <div class="card-body text-center">
@@ -266,7 +266,7 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-6 col-md-6 col-lg-3">
                             <div class="card mb-4 js-portfolio-card" role="button" tabindex="0"
                                 data-card="evolution_final" data-title="Detalle de cartera actual calculada">
                                 <div class="card-body text-center">
