@@ -373,6 +373,7 @@ class PortfolioService
                     ->whereDate('payments.date', '<=', $asOf);
             })
             ->where('contracts.deleted', 0)
+            ->whereDate('contracts.date', '<=', $asOf)
             ->when($afterMilestoneOnly, fn($q) => $q->whereDate('quotas.date', '>', $asOf))
             ->when($user && $user->hasRole('seller'), fn($q) => $q->where('contracts.seller_id', $user->id))
             ->when($user && $user->hasRole('credit_manager'), fn($q) => $q->where('users.credit_manager_id', $user->id))
