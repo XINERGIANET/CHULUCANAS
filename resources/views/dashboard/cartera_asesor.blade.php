@@ -388,6 +388,7 @@
                         <th>Cliente / Grupo</th>
                         <th>Persona</th>
                         <th>Asesor</th>
+                        <th>Fecha contrato</th>
                         <th>Cuota</th>
                         <th>Fecha cuota</th>
                         <th>Dias mora</th>
@@ -404,6 +405,7 @@
                             <td>${escapeHtml(clientName(item))}</td>
                             <td>${escapeHtml(item.person_name || item.person_document || '-')}</td>
                             <td>${escapeHtml(item.seller_name || '-')}</td>
+                            <td>${escapeHtml(item.contract_date || '-')}</td>
                             <td>${escapeHtml(item.quota_number || '-')}</td>
                             <td>${escapeHtml(item.quota_date || '-')}</td>
                             <td>${escapeHtml(item.due_days || 0)}</td>
@@ -414,7 +416,7 @@
                     `;
                 }).join('');
 
-                $('#portfolioCardTableBody').html(rows || emptyRow(10));
+                $('#portfolioCardTableBody').html(rows || emptyRow(11));
             }
 
             function renderClients(items) {

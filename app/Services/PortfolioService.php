@@ -417,6 +417,7 @@ class PortfolioService
                 contracts.name,
                 contracts.group_name,
                 users.name as seller_name,
+                DATE_FORMAT(contracts.date, '%d/%m/%Y') as contract_date,
                 q.quota_number,
                 q.person_name,
                 q.person_document,
