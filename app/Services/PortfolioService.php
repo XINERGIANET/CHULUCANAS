@@ -364,17 +364,19 @@ class PortfolioService
 
     private function quotaSnapshotQuery(string $asOf, array $filters, $user, bool $afterMilestoneOnly = true)
     {
+        $milestoneDate = Carbon::parse($asOf)->toDateString();
+
         return DB::table('quotas')
             ->join('contracts', 'contracts.id', '=', 'quotas.contract_id')
             ->leftJoin('users', 'users.id', '=', 'contracts.seller_id')
-            ->leftJoin('payments', function ($join) use ($asOf) {
+            ->leftJoin('payments', function ($join) use ($milestoneDate) {
                 $join->on('payments.quota_id', '=', 'quotas.id')
                     ->where('payments.deleted', 0)
-                    ->whereDate('payments.date', '<=', $asOf);
+                    ->whereRaw('DATE(payments.date) <= ?', [$milestoneDate]);
             })
             ->where('contracts.deleted', 0)
-            ->whereDate('contracts.date', '<=', $asOf)
-            ->when($afterMilestoneOnly, fn($q) => $q->whereDate('quotas.date', '>', Carbon::parse($asOf)->subDay()->toDateString()))
+            ->whereRaw('DATE(contracts.date) <= ?', [$milestoneDate])
+            ->when($afterMilestoneOnly, fn($q) => $q->whereRaw('DATE(quotas.date) >= ?', [$milestoneDate]))
             ->when($user && $user->hasRole('seller'), fn($q) => $q->where('contracts.seller_id', $user->id))
             ->when($user && $user->hasRole('credit_manager'), fn($q) => $q->where('users.credit_manager_id', $user->id))
             ->when($filters['credit_manager_id'] ?? null, fn($q, $id) => $q->where('users.credit_manager_id', $id))
