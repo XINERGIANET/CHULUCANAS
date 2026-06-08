@@ -185,6 +185,17 @@ class PortfolioService
             ];
         }
 
+        if ($card === 'gross_portfolio') {
+            $items = $this->quotaBalanceDetailsQuery($asOf, $filters, $user, false)->get();
+
+            return [
+                'status' => true,
+                'type' => 'quotas',
+                'total' => $items->count(),
+                'items' => $items,
+            ];
+        }
+
         $query = $this->quotaBalanceDetailsQuery($asOf, $filters, $user);
 
         if ($card === 'current_portfolio') {
@@ -210,12 +221,17 @@ class PortfolioService
     public function snapshot(Carbon $cutoff, array $filters, $user = null): array
     {
         $asOf = $cutoff->toDateString();
-        $rows = DB::query()->fromSub($this->quotaSnapshotQuery($asOf, $filters, $user), 'q');
+        $rowsGross = DB::query()->fromSub($this->quotaSnapshotQuery($asOf, $filters, $user, false), 'q');
+        $rowsAfterMilestone = DB::query()->fromSub($this->quotaSnapshotQuery($asOf, $filters, $user, true), 'q');
 
-        $totals = (clone $rows)
+        $gross = (float) (clone $rowsGross)
+            ->whereRaw('(q.amount - q.paid_to_cutoff) > 0.009')
+            ->sum(DB::raw('q.amount - q.paid_to_cutoff'));
+
+        $totals = (clone $rowsAfterMilestone)
             ->whereRaw('(q.amount - q.paid_to_cutoff) > 0.009')
             ->selectRaw("
-                COALESCE(SUM(q.amount - q.paid_to_cutoff), 0) as gross_portfolio,
+                COALESCE(SUM(q.amount - q.paid_to_cutoff), 0) as portfolio_after_milestone,
                 COALESCE(SUM(CASE WHEN DATEDIFF(?, q.quota_date) BETWEEN 1 AND 120 THEN q.amount - q.paid_to_cutoff ELSE 0 END), 0) as arrears_1_120,
                 COALESCE(SUM(CASE WHEN DATEDIFF(?, q.quota_date) > 120 THEN q.amount - q.paid_to_cutoff ELSE 0 END), 0) as arrears_over_120,
                 COALESCE(SUM(CASE WHEN DATEDIFF(?, q.quota_date) <= 0 THEN q.amount - q.paid_to_cutoff ELSE 0 END), 0) as current_installments,
@@ -231,7 +247,7 @@ class PortfolioService
             ->sum('contracts.requested_amount');
 
         $finishedWithArrears = DB::query()
-            ->fromSub($this->quotaSnapshotQuery($asOf, $filters, $user), 'q')
+            ->fromSub($this->quotaSnapshotQuery($asOf, $filters, $user, true), 'q')
             ->join('payments', 'payments.quota_id', '=', 'q.quota_id')
             ->where('payments.deleted', 0)
             ->whereDate('payments.date', '<=', $asOf)
@@ -242,10 +258,10 @@ class PortfolioService
             ->get()
             ->count();
 
-        $gross = (float) ($totals->gross_portfolio ?? 0);
         $arrears1To120 = (float) ($totals->arrears_1_120 ?? 0);
         $arrearsOver120 = (float) ($totals->arrears_over_120 ?? 0);
-        $currentPortfolio = max(0, $gross - $arrearsOver120);
+        $portfolioAfterMilestone = (float) ($totals->portfolio_after_milestone ?? 0);
+        $currentPortfolio = max(0, $portfolioAfterMilestone - $arrearsOver120);
 
         return [
             'gross_portfolio' => round($gross, 2),
@@ -346,7 +362,7 @@ class PortfolioService
             ->sum(DB::raw('q.amount - q.paid_to_cutoff'));
     }
 
-    private function quotaSnapshotQuery(string $asOf, array $filters, $user)
+    private function quotaSnapshotQuery(string $asOf, array $filters, $user, bool $afterMilestoneOnly = true)
     {
         return DB::table('quotas')
             ->join('contracts', 'contracts.id', '=', 'quotas.contract_id')
@@ -357,7 +373,7 @@ class PortfolioService
                     ->whereDate('payments.date', '<=', $asOf);
             })
             ->where('contracts.deleted', 0)
-            ->whereDate('quotas.date', '>', $asOf)
+            ->when($afterMilestoneOnly, fn($q) => $q->whereDate('quotas.date', '>', $asOf))
             ->when($user && $user->hasRole('seller'), fn($q) => $q->where('contracts.seller_id', $user->id))
             ->when($user && $user->hasRole('credit_manager'), fn($q) => $q->where('users.credit_manager_id', $user->id))
             ->when($filters['credit_manager_id'] ?? null, fn($q, $id) => $q->where('users.credit_manager_id', $id))
@@ -385,10 +401,10 @@ class PortfolioService
             ');
     }
 
-    private function quotaBalanceDetailsQuery(string $asOf, array $filters, $user)
+    private function quotaBalanceDetailsQuery(string $asOf, array $filters, $user, bool $afterMilestoneOnly = true)
     {
         return DB::query()
-            ->fromSub($this->quotaSnapshotQuery($asOf, $filters, $user), 'q')
+            ->fromSub($this->quotaSnapshotQuery($asOf, $filters, $user, $afterMilestoneOnly), 'q')
             ->join('contracts', 'contracts.id', '=', 'q.contract_id')
             ->leftJoin('users', 'users.id', '=', 'contracts.seller_id')
             ->whereRaw('(q.amount - q.paid_to_cutoff) > 0.009')
