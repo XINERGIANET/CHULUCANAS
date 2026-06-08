@@ -196,7 +196,8 @@ class PortfolioService
             ];
         }
 
-        $query = $this->quotaBalanceDetailsQuery($asOf, $filters, $user);
+        $afterMilestoneOnly = $card === 'current_portfolio';
+        $query = $this->quotaBalanceDetailsQuery($asOf, $filters, $user, $afterMilestoneOnly);
 
         if ($card === 'current_portfolio') {
             $query->whereRaw('DATEDIFF(?, q.quota_date) <= 120', [$asOf]);
@@ -228,19 +229,26 @@ class PortfolioService
             ->whereRaw('(q.amount - q.paid_to_cutoff) > 0.009')
             ->sum(DB::raw('q.amount - q.paid_to_cutoff'));
 
+        $arrearsTotals = (clone $rowsGross)
+            ->whereRaw('(q.amount - q.paid_to_cutoff) > 0.009')
+            ->selectRaw("
+                COALESCE(SUM(CASE WHEN DATEDIFF(?, q.quota_date) BETWEEN 1 AND 120 THEN q.amount - q.paid_to_cutoff ELSE 0 END), 0) as arrears_1_120,
+                COALESCE(SUM(CASE WHEN DATEDIFF(?, q.quota_date) > 120 THEN q.amount - q.paid_to_cutoff ELSE 0 END), 0) as arrears_over_120
+            ", [$asOf, $asOf])
+            ->first();
+
         $totals = (clone $rowsAfterMilestone)
             ->whereRaw('(q.amount - q.paid_to_cutoff) > 0.009')
             ->selectRaw("
                 COALESCE(SUM(q.amount - q.paid_to_cutoff), 0) as portfolio_after_milestone,
-                COALESCE(SUM(CASE WHEN DATEDIFF(?, q.quota_date) BETWEEN 1 AND 120 THEN q.amount - q.paid_to_cutoff ELSE 0 END), 0) as arrears_1_120,
-                COALESCE(SUM(CASE WHEN DATEDIFF(?, q.quota_date) > 120 THEN q.amount - q.paid_to_cutoff ELSE 0 END), 0) as arrears_over_120,
+                COALESCE(SUM(CASE WHEN DATEDIFF(?, q.quota_date) > 120 THEN q.amount - q.paid_to_cutoff ELSE 0 END), 0) as arrears_over_120_post_hito,
                 COALESCE(SUM(CASE WHEN DATEDIFF(?, q.quota_date) <= 0 THEN q.amount - q.paid_to_cutoff ELSE 0 END), 0) as current_installments,
                 COUNT(DISTINCT CONCAT(q.contract_id, '|', q.quota_number)) as pending_quotas_count,
                 COUNT(DISTINCT q.contract_id) as active_clients,
                 COUNT(DISTINCT CASE WHEN DATEDIFF(?, q.quota_date) > 120 THEN q.contract_id END) as clients_over_120,
                 COUNT(DISTINCT CASE WHEN q.client_type = 'Personal' THEN q.contract_id END) as individual_clients,
                 COUNT(DISTINCT CASE WHEN q.client_type = 'Grupo' THEN q.contract_id END) as group_clients
-            ", [$asOf, $asOf, $asOf, $asOf])
+            ", [$asOf, $asOf, $asOf])
             ->first();
 
         $disbursed = $this->contractsQuery($asOf, $filters, $user)
@@ -258,10 +266,11 @@ class PortfolioService
             ->get()
             ->count();
 
-        $arrears1To120 = (float) ($totals->arrears_1_120 ?? 0);
-        $arrearsOver120 = (float) ($totals->arrears_over_120 ?? 0);
+        $arrears1To120 = (float) ($arrearsTotals->arrears_1_120 ?? 0);
+        $arrearsOver120 = (float) ($arrearsTotals->arrears_over_120 ?? 0);
         $portfolioAfterMilestone = (float) ($totals->portfolio_after_milestone ?? 0);
-        $currentPortfolio = max(0, $portfolioAfterMilestone - $arrearsOver120);
+        $currentPortfolio = max(0, $portfolioAfterMilestone - (float) ($totals->arrears_over_120_post_hito ?? 0));
+        $portfolioForPercent = max(0, $gross - $arrearsOver120);
 
         return [
             'gross_portfolio' => round($gross, 2),
@@ -270,7 +279,7 @@ class PortfolioService
             'arrears_1_120' => round($arrears1To120, 2),
             'arrears_over_120' => round($arrearsOver120, 2),
             'arrears_total' => round($arrears1To120 + $arrearsOver120, 2),
-            'arrears_percent' => $currentPortfolio > 0 ? round(($arrears1To120 / $currentPortfolio) * 100, 2) : 0,
+            'arrears_percent' => $portfolioForPercent > 0 ? round(($arrears1To120 / $portfolioForPercent) * 100, 2) : 0,
             'active_clients' => (int) ($totals->active_clients ?? 0),
             'clients_over_120' => (int) ($totals->clients_over_120 ?? 0),
             'individual_clients' => (int) ($totals->individual_clients ?? 0),
