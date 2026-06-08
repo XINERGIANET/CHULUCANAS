@@ -16,6 +16,7 @@ class PortfolioService
         $filters = [
             'credit_manager_id' => $request->credit_manager_id,
             'seller_id' => $request->seller_id_2,
+            'start_date' => $request->start_date_2,
         ];
 
         $snapshot = $this->snapshot($cutoff, $filters, $user);
@@ -61,6 +62,7 @@ class PortfolioService
         $filters = [
             'credit_manager_id' => $request->credit_manager_id,
             'seller_id' => $request->seller_id_2,
+            'start_date' => $request->start_date_2,
         ];
 
         if (in_array($card, ['evolution_initial', 'evolution_increments', 'evolution_reductions', 'evolution_final'], true)) {
@@ -359,7 +361,8 @@ class PortfolioService
                     ->whereDate('payments.date', '<=', $asOf);
             })
             ->where('contracts.deleted', 0)
-            ->whereDate('contracts.date', '<=', $asOf)
+            ->whereDate('quotas.date', '<=', $asOf)
+            ->when($filters['start_date'] ?? null, fn($q, $startDate) => $q->whereDate('quotas.date', '>=', $startDate))
             ->when($user && $user->hasRole('seller'), fn($q) => $q->where('contracts.seller_id', $user->id))
             ->when($user && $user->hasRole('credit_manager'), fn($q) => $q->where('users.credit_manager_id', $user->id))
             ->when($filters['credit_manager_id'] ?? null, fn($q, $id) => $q->where('users.credit_manager_id', $id))
