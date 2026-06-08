@@ -33,9 +33,10 @@
         }
 
         .portfolio-metric-value {
-            font-size: 0.95rem;
+            font-size: 1.15rem;
             line-height: 1.15;
             word-break: break-word;
+            font-weight: 600;
         }
     </style>
 @endsection
