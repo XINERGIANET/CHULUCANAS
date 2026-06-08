@@ -10,33 +10,33 @@
 
         .portfolio-metric-card {
             width: 100%;
-            min-height: 8.75rem;
         }
 
         .portfolio-metric-card .card-body {
             display: flex;
             flex-direction: column;
-            justify-content: space-between;
-            padding: 0.75rem 0.4rem;
+            justify-content: center;
+            padding: 1.25rem 0.75rem;
             height: 100%;
         }
 
-        .portfolio-metric-title {
-            font-size: 0.7rem;
-            line-height: 1.2;
-            min-height: 3.6rem;
-            margin-bottom: 0.25rem;
+        .portfolio-metric-card .card-title {
+            min-height: 2.5rem;
             display: flex;
             align-items: center;
             justify-content: center;
             text-align: center;
+            margin-bottom: 0.75rem;
         }
 
-        .portfolio-metric-value {
-            font-size: 1.15rem;
-            line-height: 1.15;
+        .portfolio-metric-card .metric-value {
             word-break: break-word;
-            font-weight: 600;
+        }
+
+        .portfolio-metric-card .metric-value .metric-icon {
+            font-size: 0.85em;
+            vertical-align: middle;
+            margin-right: 0.15rem;
         }
     </style>
 @endsection
@@ -163,9 +163,8 @@
                         <div class="card portfolio-metric-card js-portfolio-card h-100 mb-0" role="button" tabindex="0"
                             data-card="gross_portfolio" data-title="Detalle de cartera bruta">
                             <div class="card-body text-center">
-                                <h6 class="card-title portfolio-metric-title">Cartera bruta</h6>
-                                <span class="portfolio-metric-value">S/
-                                    {{ number_format($cartera_bruta, 2) }}</span>
+                                <h5 class="card-title">Cartera bruta</h5>
+                                <span class="d-block fs-1 text-center fw-semibold metric-value"><i class="ti ti-briefcase metric-icon"></i>S/{{ number_format($cartera_bruta, 2) }}</span>
                             </div>
                         </div>
                     </div>
@@ -173,9 +172,8 @@
                         <div class="card portfolio-metric-card js-portfolio-card h-100 mb-0" role="button" tabindex="0"
                             data-card="current_portfolio" data-title="Detalle de cartera actual">
                             <div class="card-body text-center">
-                                <h6 class="card-title portfolio-metric-title">Cartera actual</h6>
-                                <span class="portfolio-metric-value">S/
-                                    {{ number_format($active_clients, 2) }}</span>
+                                <h5 class="card-title">Cartera actual</h5>
+                                <span class="d-block fs-1 text-center fw-semibold metric-value"><i class="ti ti-wallet metric-icon"></i>S/{{ number_format($active_clients, 2) }}</span>
                             </div>
                         </div>
                     </div>
@@ -183,9 +181,8 @@
                         <div class="card portfolio-metric-card js-portfolio-card h-100 mb-0" role="button" tabindex="0"
                             data-card="arrears_1_120" data-title="Detalle de mora 1 a 120 dias">
                             <div class="card-body text-center">
-                                <h6 class="card-title portfolio-metric-title">Mora(<120 dias)</h6>
-                                <span class="portfolio-metric-value">S/
-                                    {{ number_format($due_clients, 2) }}</span>
+                                <h5 class="card-title">Mora(&lt;120 dias)</h5>
+                                <span class="d-block fs-1 text-center fw-semibold metric-value"><i class="ti ti-clock-exclamation metric-icon"></i>S/{{ number_format($due_clients, 2) }}</span>
                             </div>
                         </div>
                     </div>
@@ -193,8 +190,8 @@
                         <div class="card portfolio-metric-card js-portfolio-card h-100 mb-0" role="button" tabindex="0"
                             data-card="arrears_over_120" data-title="Detalle de mora mayor a 120 dias">
                             <div class="card-body text-center">
-                                <h6 class="card-title portfolio-metric-title">Mora(>121 dias)</h6>
-                                <span class="portfolio-metric-value">S/{{ number_format($seller_wallet, 2) }}</span>
+                                <h5 class="card-title">Mora(&gt;121 dias)</h5>
+                                <span class="d-block fs-1 text-center fw-semibold metric-value"><i class="ti ti-alert-triangle metric-icon"></i>S/{{ number_format($seller_wallet, 2) }}</span>
                             </div>
                         </div>
                     </div>
@@ -202,8 +199,8 @@
                         <div class="card portfolio-metric-card js-portfolio-card h-100 mb-0" role="button" tabindex="0"
                             data-card="arrears_total" data-title="Detalle de mora total">
                             <div class="card-body text-center">
-                                <h6 class="card-title portfolio-metric-title">Mora total</h6>
-                                <span class="portfolio-metric-value">S/{{ number_format($requested_amount, 2) }}</span>
+                                <h5 class="card-title">Mora total</h5>
+                                <span class="d-block fs-1 text-center fw-semibold metric-value"><i class="ti ti-sum metric-icon"></i>S/{{ number_format($requested_amount, 2) }}</span>
                             </div>
                         </div>
                     </div>
@@ -211,8 +208,8 @@
                         <div class="card portfolio-metric-card js-portfolio-card h-100 mb-0" role="button" tabindex="0"
                             data-card="arrears_percent" data-title="Detalle de porcentaje de mora">
                             <div class="card-body text-center">
-                                <h6 class="card-title portfolio-metric-title">% de mora</h6>
-                                <span class="portfolio-metric-value">{{ number_format($due_quotas, 2) }}%</span>
+                                <h5 class="card-title">% de mora</h5>
+                                <span class="d-block fs-1 text-center fw-semibold metric-value"><i class="ti ti-percentage metric-icon"></i>{{ number_format($due_quotas, 2) }}%</span>
                             </div>
                         </div>
                     </div>
@@ -220,8 +217,8 @@
                         <div class="card portfolio-metric-card js-portfolio-card h-100 mb-0" role="button" tabindex="0"
                             data-card="active_clients" data-title="Detalle de clientes activos">
                             <div class="card-body text-center">
-                                <h6 class="card-title portfolio-metric-title">Clientes activos</h6>
-                                <span class="portfolio-metric-value">{{ number_format($cutoff['active_clients'] ?? 0) }}</span>
+                                <h5 class="card-title">Clientes activos</h5>
+                                <span class="d-block fs-1 text-center fw-semibold metric-value"><i class="bi bi-person-circle metric-icon"></i>{{ number_format($cutoff['active_clients'] ?? 0) }}</span>
                             </div>
                         </div>
                     </div>
@@ -229,8 +226,8 @@
                         <div class="card portfolio-metric-card js-portfolio-card h-100 mb-0" role="button" tabindex="0"
                             data-card="clients_over_120" data-title="Detalle de clientes con deuda mayor a 120 dias">
                             <div class="card-body text-center">
-                                <h6 class="card-title portfolio-metric-title">Clientes con deuda (&gt;120 dias)</h6>
-                                <span class="portfolio-metric-value">{{ number_format($cutoff['clients_over_120'] ?? 0) }}</span>
+                                <h5 class="card-title">Clientes con deuda (&gt;120 dias)</h5>
+                                <span class="d-block fs-1 text-center fw-semibold metric-value"><i class="bi bi-person-circle metric-icon"></i>{{ number_format($cutoff['clients_over_120'] ?? 0) }}</span>
                             </div>
                         </div>
                     </div>
@@ -238,10 +235,8 @@
                         <div class="card portfolio-metric-card js-portfolio-card h-100 mb-0" role="button" tabindex="0"
                             data-card="individual_group_clients" data-title="Detalle de clientes individuales y grupales">
                             <div class="card-body text-center">
-                                <h6 class="card-title portfolio-metric-title">Clientes individuales / grupales</h6>
-                                <span class="portfolio-metric-value">
-                                    {{ number_format($cutoff['individual_clients'] ?? 0) }} / {{ number_format($cutoff['group_clients'] ?? 0) }}
-                                </span>
+                                <h5 class="card-title">Clientes individuales / grupales</h5>
+                                <span class="d-block fs-1 text-center fw-semibold metric-value"><i class="bi bi-person-circle metric-icon"></i>{{ number_format($cutoff['individual_clients'] ?? 0) }} / {{ number_format($cutoff['group_clients'] ?? 0) }}</span>
                             </div>
                         </div>
                     </div>
@@ -249,8 +244,8 @@
                         <div class="card portfolio-metric-card js-portfolio-card h-100 mb-0" role="button" tabindex="0"
                             data-card="finished_clients_with_arrears_1_120" data-title="Detalle de clientes finalizados con mora 1 a 120 dias">
                             <div class="card-body text-center">
-                                <h6 class="card-title portfolio-metric-title">Clientes finalizados con mora (1-120 dias)</h6>
-                                <span class="portfolio-metric-value">{{ number_format($cutoff['finished_clients_with_arrears_1_120'] ?? 0) }}</span>
+                                <h5 class="card-title">Clientes finalizados con mora (1-120 dias)</h5>
+                                <span class="d-block fs-1 text-center fw-semibold metric-value"><i class="bi bi-person-circle metric-icon"></i>{{ number_format($cutoff['finished_clients_with_arrears_1_120'] ?? 0) }}</span>
                             </div>
                         </div>
                     </div>
@@ -258,8 +253,8 @@
                         <div class="card portfolio-metric-card js-portfolio-card h-100 mb-0" role="button" tabindex="0"
                             data-card="disbursed_amount" data-title="Detalle de monto desembolsado">
                             <div class="card-body text-center">
-                                <h6 class="card-title portfolio-metric-title">Monto desembolsado</h6>
-                                <span class="portfolio-metric-value">S/{{ number_format($cutoff['disbursed_amount'] ?? 0, 2) }}</span>
+                                <h5 class="card-title">Monto desembolsado</h5>
+                                <span class="d-block fs-1 text-center fw-semibold metric-value"><i class="ti ti-cash-banknote metric-icon"></i>S/{{ number_format($cutoff['disbursed_amount'] ?? 0, 2) }}</span>
                             </div>
                         </div>
                     </div>
@@ -267,8 +262,8 @@
                         <div class="card portfolio-metric-card js-portfolio-card h-100 mb-0" role="button" tabindex="0"
                             data-card="pending_quotas_count" data-title="Detalle de cuotas por pagar">
                             <div class="card-body text-center">
-                                <h6 class="card-title portfolio-metric-title"># de cuotas por pagar</h6>
-                                <span class="portfolio-metric-value">{{ number_format($cutoff['pending_quotas_count'] ?? 0) }}</span>
+                                <h5 class="card-title"># de cuotas por pagar</h5>
+                                <span class="d-block fs-1 text-center fw-semibold metric-value"><i class="ti ti-list-numbers metric-icon"></i>{{ number_format($cutoff['pending_quotas_count'] ?? 0) }}</span>
                             </div>
                         </div>
                     </div>
@@ -280,8 +275,8 @@
                             <div class="card portfolio-metric-card js-portfolio-card h-100 mb-0" role="button" tabindex="0"
                                 data-card="evolution_initial" data-title="Detalle de saldo inicial">
                                 <div class="card-body text-center">
-                                    <h6 class="card-title portfolio-metric-title">Saldo inicial</h6>
-                                    <span class="portfolio-metric-value">S/{{ number_format($evolution['initial_balance'], 2) }}</span>
+                                    <h5 class="card-title">Saldo inicial</h5>
+                                    <span class="d-block fs-1 text-center fw-semibold metric-value">S/{{ number_format($evolution['initial_balance'], 2) }}</span>
                                 </div>
                             </div>
                         </div>
@@ -289,9 +284,9 @@
                             <div class="card portfolio-metric-card js-portfolio-card h-100 mb-0" role="button" tabindex="0"
                                 data-card="evolution_increments" data-title="Detalle de incrementos">
                                 <div class="card-body text-center">
-                                    <h6 class="card-title portfolio-metric-title">Incrementos</h6>
-                                    <span class="portfolio-metric-value">S/{{ number_format($evolution['increments'], 2) }}</span>
-                                    <div class="text-muted">Capital S/{{ number_format($evolution['disbursed_capital'], 2) }} / Interes S/{{ number_format($evolution['generated_interest'], 2) }}</div>
+                                    <h5 class="card-title">Incrementos</h5>
+                                    <span class="d-block fs-1 text-center fw-semibold metric-value">S/{{ number_format($evolution['increments'], 2) }}</span>
+                                    <div class="text-muted small">Capital S/{{ number_format($evolution['disbursed_capital'], 2) }} / Interes S/{{ number_format($evolution['generated_interest'], 2) }}</div>
                                 </div>
                             </div>
                         </div>
@@ -299,9 +294,9 @@
                             <div class="card portfolio-metric-card js-portfolio-card h-100 mb-0" role="button" tabindex="0"
                                 data-card="evolution_reductions" data-title="Detalle de reducciones">
                                 <div class="card-body text-center">
-                                    <h6 class="card-title portfolio-metric-title">Reducciones</h6>
-                                    <span class="portfolio-metric-value">S/{{ number_format($evolution['reductions'], 2) }}</span>
-                                    <div class="text-muted">Pagos S/{{ number_format($evolution['payments'], 2) }} / Deterioro S/{{ number_format($evolution['deteriorated_over_120'], 2) }}</div>
+                                    <h5 class="card-title">Reducciones</h5>
+                                    <span class="d-block fs-1 text-center fw-semibold metric-value">S/{{ number_format($evolution['reductions'], 2) }}</span>
+                                    <div class="text-muted small">Pagos S/{{ number_format($evolution['payments'], 2) }} / Deterioro S/{{ number_format($evolution['deteriorated_over_120'], 2) }}</div>
                                 </div>
                             </div>
                         </div>
@@ -309,8 +304,8 @@
                             <div class="card portfolio-metric-card js-portfolio-card h-100 mb-0" role="button" tabindex="0"
                                 data-card="evolution_final" data-title="Detalle de cartera actual calculada">
                                 <div class="card-body text-center">
-                                    <h6 class="card-title portfolio-metric-title">Cartera actual calculada</h6>
-                                    <span class="portfolio-metric-value">S/{{ number_format($evolution['final_balance'], 2) }}</span>
+                                    <h5 class="card-title">Cartera actual calculada</h5>
+                                    <span class="d-block fs-1 text-center fw-semibold metric-value">S/{{ number_format($evolution['final_balance'], 2) }}</span>
                                 </div>
                             </div>
                         </div>
