@@ -364,19 +364,20 @@ class PortfolioService
 
     private function quotaSnapshotQuery(string $asOf, array $filters, $user, bool $afterMilestoneOnly = true)
     {
-        $milestoneDate = Carbon::parse($asOf)->toDateString();
+        $milestoneDate = $this->date($asOf)->toDateString();
+        $paymentCutoffDate = $this->date($asOf)->subDay()->toDateString();
 
         return DB::table('quotas')
             ->join('contracts', 'contracts.id', '=', 'quotas.contract_id')
             ->leftJoin('users', 'users.id', '=', 'contracts.seller_id')
-            ->leftJoin('payments', function ($join) use ($milestoneDate) {
+            ->leftJoin('payments', function ($join) use ($paymentCutoffDate) {
                 $join->on('payments.quota_id', '=', 'quotas.id')
                     ->where('payments.deleted', 0)
-                    ->whereRaw('DATE(payments.date) <= ?', [$milestoneDate]);
+                    ->whereRaw('DATE(payments.date) <= ?', [$paymentCutoffDate]);
             })
             ->where('contracts.deleted', 0)
             ->whereRaw('DATE(contracts.date) <= ?', [$milestoneDate])
-            ->when($afterMilestoneOnly, fn($q) => $q->whereRaw('DATE(quotas.date) >= ?', [$milestoneDate]))
+            ->when($afterMilestoneOnly, fn($q) => $q->where('quotas.date', '>=', $milestoneDate))
             ->when($user && $user->hasRole('seller'), fn($q) => $q->where('contracts.seller_id', $user->id))
             ->when($user && $user->hasRole('credit_manager'), fn($q) => $q->where('users.credit_manager_id', $user->id))
             ->when($filters['credit_manager_id'] ?? null, fn($q, $id) => $q->where('users.credit_manager_id', $id))
@@ -406,10 +407,13 @@ class PortfolioService
 
     private function quotaBalanceDetailsQuery(string $asOf, array $filters, $user, bool $afterMilestoneOnly = true)
     {
+        $milestoneDate = $this->date($asOf)->toDateString();
+
         return DB::query()
             ->fromSub($this->quotaSnapshotQuery($asOf, $filters, $user, $afterMilestoneOnly), 'q')
             ->join('contracts', 'contracts.id', '=', 'q.contract_id')
             ->leftJoin('users', 'users.id', '=', 'contracts.seller_id')
+            ->when($afterMilestoneOnly, fn($q) => $q->whereRaw('DATE(q.quota_date) >= ?', [$milestoneDate]))
             ->whereRaw('(q.amount - q.paid_to_cutoff) > 0.009')
             ->selectRaw("
                 contracts.number_pagare,
