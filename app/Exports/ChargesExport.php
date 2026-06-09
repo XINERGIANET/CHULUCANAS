@@ -26,6 +26,7 @@ class ChargesExport implements FromCollection, WithHeadings, WithMapping, WithSt
     public function collection()
     {
         return (clone $this->quotasQuery)
+            ->with(['contract.seller.creditManager'])
             ->orderBy('date')
             ->get();
     }
@@ -37,8 +38,15 @@ class ChargesExport implements FromCollection, WithHeadings, WithMapping, WithSt
             $client = $client . ' - ' . ($quota->person_name ?? $quota->person_document ?? '');
         }
 
+        $seller = optional(optional($quota->contract)->seller);
+        $creditManager = optional($seller->creditManager);
+        $advisor = $seller->name
+            ? $seller->name . ($creditManager->name ? ' - ' . $creditManager->name : '')
+            : '';
+
         return [
             $client,
+            $advisor,
             $quota->number,
             $quota->amount,
             $quota->debt,
@@ -50,6 +58,7 @@ class ChargesExport implements FromCollection, WithHeadings, WithMapping, WithSt
     {
         return [
             'Cliente',
+            'Asesor - Jefe de crédito',
             'Número de cuota',
             'Monto',
             'Saldo',

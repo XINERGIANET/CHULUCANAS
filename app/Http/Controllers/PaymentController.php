@@ -340,9 +340,15 @@ class PaymentController extends Controller
         // Total de saldo pendiente con los mismos filtros (todas las páginas)
         $total = (clone $quotasQuery)->sum('debt');
 
-        $quotas = $quotasQuery->orderBy('date')->paginate(20);
+        $perPage = (int) $request->input('per_page', 20);
+        $perPage = in_array($perPage, [20, 50, 100], true) ? $perPage : 20;
 
-        return view('payments.charges', compact('quotas', 'sellers', 'credit_managers', 'total'));
+        $quotas = $quotasQuery
+            ->with(['contract.seller.creditManager'])
+            ->orderBy('date')
+            ->paginate($perPage);
+
+        return view('payments.charges', compact('quotas', 'sellers', 'credit_managers', 'total', 'perPage'));
     }
 
     /**

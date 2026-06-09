@@ -1,1 +1,1 @@
-feat: implement productivity dashboard routes, controller logic, and view structure
+Refactor migrations to comment out table creation and add new portfolio movements table; update dashboard view with new styles and metrics; implement AJAX for portfolio card details; add new route for cartera asesor card details.

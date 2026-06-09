@@ -68,6 +68,16 @@
                             <input type="number" class="form-control" name="quota_number" value="{{ request()->quota_number }}">
                         </div>
                     </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label class="form-label">Registros por página</label>
+                            <select class="form-select" name="per_page" onchange="this.form.submit()">
+                                @foreach ([20, 50, 100] as $pageSize)
+                                    <option value="{{ $pageSize }}" @if (($perPage ?? 20) == $pageSize) selected @endif>{{ $pageSize }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
                 </div>
                 <div class="d-flex gap-2 align-items-center">
                     <button class="btn btn-primary">Filtrar</button>
@@ -83,6 +93,7 @@
                 <thead>
                     <tr>
                         <th>Cliente</th>
+                        <th>Asesor - Jefe de crédito</th>
                         <th>Número de cuota</th>
                         <th>Monto</th>
                         <th>Saldo</th>
@@ -106,6 +117,17 @@
                                         </small>
                                     @endif
                                 </td>
+                                <td>
+                                    @php
+                                        $seller = optional(optional($quota->contract)->seller);
+                                        $creditManager = optional($seller->creditManager);
+                                    @endphp
+                                    @if ($seller->name)
+                                        {{ $seller->name }}@if ($creditManager->name) - {{ $creditManager->name }}@endif
+                                    @else
+                                        -
+                                    @endif
+                                </td>
                                 <td>{{ $quota->number }}</td>
                                 <td>{{ number_format($quota->amount, 2) }}</td>
                                 <td>{{ number_format($quota->debt, 2) }}</td>
@@ -115,15 +137,18 @@
                         @endforeach
                     @else
                         <tr>
-                            <td colspan="6" align="center">No se han encontrado resultados</td>
+                            <td colspan="7" align="center">No se han encontrado resultados</td>
                         </tr>
                     @endif
                 </tbody>
             </table>
         </div>
-        @if ($quotas->hasPages())
-            <div class="card-footer d-flex align-items-center">
-                {{ $quotas->withQueryString()->links() }}
+        @if ($quotas->hasPages() || $quotas->total() > 0)
+            <div class="card-footer d-flex flex-wrap align-items-center justify-content-between gap-2">
+                <small class="text-muted">Mostrando {{ $quotas->firstItem() ?? 0 }}–{{ $quotas->lastItem() ?? 0 }} de {{ $quotas->total() }}</small>
+                @if ($quotas->hasPages())
+                    {{ $quotas->withQueryString()->links() }}
+                @endif
             </div>
         @endif
     </div>
