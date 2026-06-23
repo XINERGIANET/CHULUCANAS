@@ -72,6 +72,16 @@
                     @endif
                     <div class="col-md-2">
                         <div class="mb-2">
+                            <label class="form-label">Estado</label>
+                            <select class="form-select" name="paid">
+                                <option value="">Todos</option>
+                                <option value="0" @selected((string) request()->paid === '0')>Pendiente</option>
+                                <option value="1" @selected((string) request()->paid === '1')>Pagado</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="mb-2">
                             <label class="form-label">Inicio de cuota</label>
                             <input type="date" class="form-control" name="start_date"
                                 value="{{ request()->start_date }}">
@@ -93,6 +103,7 @@
             <table class="table card-table table-vcenter">
                 <thead>
                     <tr>
+                        <th>ID</th>
                         <th>Cliente/Grupo</th>
                         <th>Persona</th>
                         <th>Documento</th>
@@ -119,6 +130,7 @@
                                 $paymentImage = $lastPayment && $lastPayment->image ? asset('storage/' . $lastPayment->image) : null;
                             @endphp
                             <tr>
+                                <td>{{ $quota->id }}</td>
                                 <td>{{ $contract ? $contract->client() : 'N/A' }}</td>
                                 <td>{{ $quota->person_name }}</td>
                                 <td>{{ $quota->person_document }}</td>
@@ -138,15 +150,10 @@
                                     {{ $paymentDate ? $paymentDate->format('d/m/Y') : '-' }}
                                 </td>
                                 <td>
-                                    @if ($quota->paid)
-                                        <button class="btn btn-sm btn-primary js-view-payment"
-                                            data-client="{{ $contract ? $contract->client() : 'N/A' }}"
-                                            data-quota="{{ $quota->number }}"
-                                            data-amount="{{ number_format($lastPayment ? $lastPayment->amount : 0, 2) }}"
-                                            data-method="{{ $paymentMethod === 'Efectivo' ? 'Retanqueo' : ($paymentMethod ?? 'N/A') }}"
-                                            data-date="{{ $paymentDate ? $paymentDate->format('d/m/Y') : '' }}"
-                                            data-image="{{ $paymentImage ?? '' }}">
-                                            Ver pago
+                                    @if ($quota->payments->count() > 0)
+                                        <button class="btn btn-sm btn-primary js-view-payment-history"
+                                            data-url="{{ route('quotas.payments', $quota) }}">
+                                            Ver pagos
                                         </button>
                                     @else
                                         -
@@ -156,7 +163,7 @@
                         @endforeach
                     @else
                         <tr>
-                            <td colspan="9" align="center">No se han encontrado resultados</td>
+                            <td colspan="12" align="center">No se han encontrado resultados</td>
                         </tr>
                     @endif
                 </tbody>
@@ -173,7 +180,7 @@
         <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Detalle de pago</h5>
+                    <h5 class="modal-title">Historial de pagos de cuota</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
@@ -202,6 +209,64 @@
                     <div id="quotaPaymentImageWrapper" class="text-center">
                         <img id="quotaPaymentImage" src="" alt="Comprobante" class="img-fluid rounded d-none" />
                         <div id="quotaPaymentNoImage" class="text-muted">No hay comprobante disponible.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal modal-blur fade" id="quotaPaymentHistoryModal" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Historial de pagos de cuota</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-3">
+                            <div class="text-muted small">ID cuota</div>
+                            <div id="quotaHistoryId" class="fw-semibold"></div>
+                        </div>
+                        <div class="col-md-5">
+                            <div class="text-muted small">Cliente</div>
+                            <div id="quotaHistoryClient" class="fw-semibold"></div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="text-muted small">Cuota</div>
+                            <div id="quotaHistoryQuota" class="fw-semibold"></div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="text-muted small">Saldo</div>
+                            <div id="quotaHistoryDebt" class="fw-semibold"></div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="text-muted small">Persona</div>
+                            <div id="quotaHistoryPerson" class="fw-semibold"></div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-muted small">Monto cuota</div>
+                            <div id="quotaHistoryAmount" class="fw-semibold"></div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-muted small">Total pagado</div>
+                            <div id="quotaHistoryPaidTotal" class="fw-semibold text-success"></div>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-striped align-middle">
+                            <thead>
+                                <tr>
+                                    <th>ID pago</th>
+                                    <th>Monto</th>
+                                    <th>Fecha</th>
+                                    <th>Metodo</th>
+                                    <th>Dias mora</th>
+                                    <th>Comprobante</th>
+                                </tr>
+                            </thead>
+                            <tbody id="quotaHistoryTableBody"></tbody>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -257,25 +322,56 @@
     </script>
     <script>
         (function() {
-            $(document).on('click', '.js-view-payment', function() {
-                var $btn = $(this);
-                var image = $btn.data('image');
+            function money(value) {
+                return 'S/' + parseFloat(value || 0).toFixed(2);
+            }
 
-                $('#quotaPaymentClient').text($btn.data('client') || '');
-                $('#quotaPaymentQuota').text($btn.data('quota') || '');
-                $('#quotaPaymentAmount').text('S/' + ($btn.data('amount') || '0.00'));
-                $('#quotaPaymentMethod').text($btn.data('method') || '');
-                $('#quotaPaymentDate').text($btn.data('date') || '');
-
-                if (image) {
-                    $('#quotaPaymentImage').attr('src', image).removeClass('d-none');
-                    $('#quotaPaymentNoImage').addClass('d-none');
-                } else {
-                    $('#quotaPaymentImage').addClass('d-none');
-                    $('#quotaPaymentNoImage').removeClass('d-none');
+            function paymentRows(items) {
+                if (!items || items.length === 0) {
+                    return '<tr><td colspan="6" class="text-center">No hay pagos registrados</td></tr>';
                 }
 
-                $('#quotaPaymentModal').modal('show');
+                return items.map(function(item) {
+                    return `
+                        <tr>
+                            <td>${item.id || '-'}</td>
+                            <td>${money(item.amount)}</td>
+                            <td>${item.date || '-'}</td>
+                            <td>${item.payment_method || '-'}</td>
+                            <td>${item.due_days !== null && item.due_days !== undefined ? item.due_days : '-'}</td>
+                            <td>
+                                ${item.image_url
+                                    ? `<a href="${item.image_url}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-primary">Ver foto</a>`
+                                    : '<span class="text-muted">Sin foto</span>'}
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+
+            $(document).on('click', '.js-view-payment-history', function() {
+                var url = $(this).data('url');
+                $('#quotaHistoryTableBody').html('<tr><td colspan="6" class="text-center">Cargando...</td></tr>');
+                $('#quotaPaymentHistoryModal').modal('show');
+
+                $.ajax({
+                    url: url,
+                    method: 'GET',
+                    success: function(data) {
+                        var quota = data.quota || {};
+                        $('#quotaHistoryId').text(quota.id || '');
+                        $('#quotaHistoryClient').text(quota.client || '');
+                        $('#quotaHistoryQuota').text(quota.number || '');
+                        $('#quotaHistoryPerson').text(quota.person_name || quota.person_document || '-');
+                        $('#quotaHistoryAmount').text(money(quota.amount));
+                        $('#quotaHistoryDebt').text(money(quota.debt));
+                        $('#quotaHistoryPaidTotal').text(money(data.payments_total));
+                        $('#quotaHistoryTableBody').html(paymentRows(data.payments || []));
+                    },
+                    error: function() {
+                        $('#quotaHistoryTableBody').html('<tr><td colspan="6" class="text-center">No se pudo cargar el historial de pagos</td></tr>');
+                    }
+                });
             });
         })();
     </script>

@@ -52,6 +52,16 @@
                         @endif
                         <div class="col-md-3">
                             <div class="mb-3">
+                                <label class="form-label">Estado</label>
+                                <select class="form-select" name="status">
+                                    <option value="">Todos</option>
+                                    <option value="1" @selected((string) request()->status === '1')>Activo</option>
+                                    <option value="0" @selected((string) request()->status === '0')>Inactivo</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-3">
                                 <label class="form-label">Inicio del préstamo</label>
                                 <input type="date" class="form-control" name="start_date"
                                     value="{{ request()->start_date }}">

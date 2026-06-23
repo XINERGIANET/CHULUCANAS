@@ -62,6 +62,7 @@ Route::middleware('auth')->group(function () {
 	Route::resource('contracts', ContractController::class);
 
 	Route::get('quotas/api', [QuotaController::class, 'api'])->name('quotas.api');
+	Route::get('quotas/{quota}/payments', [QuotaController::class, 'payments'])->name('quotas.payments');
 	Route::get('quotas', [QuotaController::class, 'index'])->name('quotas.index');
 	Route::get('quotas/excel', [QuotaController::class, 'excel'])->name('quotas.excel');
 	Route::get('quotas/clients', [QuotaController::class, 'clients'])->name('quotas.clients');

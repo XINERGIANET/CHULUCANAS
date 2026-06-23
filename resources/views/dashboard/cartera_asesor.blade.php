@@ -335,6 +335,23 @@
                 </div>
             </div>
         </div>
+
+        <div class="modal fade" id="portfolioQuotaModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-xl modal-dialog-scrollable">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <div>
+                            <h5 class="modal-title" id="portfolioQuotaModalTitle">Detalle de cuotas y pagos</h5>
+                            <div class="text-muted small" id="portfolioQuotaModalSubtitle"></div>
+                        </div>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div id="portfolioQuotaContent"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
     @endif
 
 @endsection
@@ -381,6 +398,242 @@
                 return `<tr><td colspan="${cols}" class="text-center">No se encontraron registros</td></tr>`;
             }
 
+            function quotaStatusBadge(status) {
+                return status === 'Pagado'
+                    ? '<span class="badge bg-success">Pagado</span>'
+                    : '<span class="badge bg-danger">Pendiente</span>';
+            }
+
+            function quotaList(values) {
+                if (!values || values.length === 0) {
+                    return '-';
+                }
+
+                return values.map(function(value) {
+                    return 'C' + escapeHtml(value);
+                }).join(', ');
+            }
+
+            function setQuotaLoading() {
+                $('#portfolioQuotaContent').html(`
+                    <div class="text-center py-5">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Cargando...</span>
+                        </div>
+                    </div>
+                `);
+            }
+
+            function renderPendingQuotas(data) {
+                var contract = data.contract || {};
+                var summary = data.summary || {};
+                var quotaItems = data.quotas || [];
+                var memberItems = data.members || [];
+                var paymentItems = data.payments || [];
+
+                $('#portfolioQuotaModalTitle').text('Detalle de cuotas y pagos');
+                $('#portfolioQuotaModalSubtitle').text(clientName(contract));
+
+                var summaryHtml = `
+                    <div class="row g-3 mb-4">
+                        <div class="col-6 col-md-3">
+                            <div class="border rounded p-3 h-100">
+                                <div class="text-muted small">Total programado</div>
+                                <div class="fw-semibold fs-4">${money(summary.quotas_total)}</div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="border rounded p-3 h-100">
+                                <div class="text-muted small">Total pagado</div>
+                                <div class="fw-semibold fs-4 text-success">${money(summary.paid_total)}</div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="border rounded p-3 h-100">
+                                <div class="text-muted small">Saldo pendiente</div>
+                                <div class="fw-semibold fs-4 text-danger">${money(summary.debt_total)}</div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="border rounded p-3 h-100">
+                                <div class="text-muted small">Corte</div>
+                                <div class="fw-semibold">${escapeHtml(summary.as_of || 'Hoy')}</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row g-3 mb-4">
+                        <div class="col-6 col-md-3">
+                            <div class="border rounded p-3 h-100">
+                                <div class="text-muted small">Cuotas</div>
+                                <div class="fw-semibold">${escapeHtml(summary.quotas_count || 0)}</div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="border rounded p-3 h-100">
+                                <div class="text-muted small">Cuotas pagadas</div>
+                                <div class="fw-semibold text-success">${escapeHtml(summary.paid_quotas_count || 0)}</div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="border rounded p-3 h-100">
+                                <div class="text-muted small">Cuotas pendientes</div>
+                                <div class="fw-semibold text-danger">${escapeHtml(summary.pending_quotas_count || 0)}</div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="border rounded p-3 h-100">
+                                <div class="text-muted small">Integrantes</div>
+                                <div class="fw-semibold">${escapeHtml(summary.members_count || 0)}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                var quotaRows = quotaItems.map(function(item) {
+                    var members = (item.members || []).map(function(member) {
+                        return `
+                            <div class="mb-2">
+                                <div class="fw-semibold">${escapeHtml(member.name || '-')}</div>
+                                <div class="small text-muted">${escapeHtml(member.document || '-')}</div>
+                                <div class="small">Programado: ${money(member.amount)} | Pagado: ${money(member.paid_total)} | Debe: ${money(member.debt)}</div>
+                            </div>
+                        `;
+                    }).join('');
+
+                    return `
+                        <tr>
+                            <td>${escapeHtml(item.number || '-')}</td>
+                            <td>${escapeHtml(item.date || '-')}</td>
+                            <td>${money(item.amount)}</td>
+                            <td>${money(item.paid_total)}</td>
+                            <td>${money(item.debt)}</td>
+                            <td>${quotaStatusBadge(item.status)}</td>
+                            <td>${members || '-'}</td>
+                        </tr>
+                    `;
+                }).join('');
+
+                var memberRows = memberItems.map(function(member) {
+                    return `
+                        <tr>
+                            <td>${escapeHtml(member.name || '-')}</td>
+                            <td>${escapeHtml(member.document || '-')}</td>
+                            <td>${money(member.total_amount)}</td>
+                            <td>${money(member.paid_total)}</td>
+                            <td>${money(member.debt_total)}</td>
+                            <td>${quotaList(member.paid_quotas)}</td>
+                            <td>${quotaList(member.pending_quotas)}</td>
+                        </tr>
+                    `;
+                }).join('');
+
+                var paymentRows = paymentItems.map(function(payment) {
+                    return `
+                        <tr>
+                            <td>${escapeHtml(payment.quota_number || '-')}</td>
+                            <td>${escapeHtml(payment.member_name || '-')}</td>
+                            <td>${money(payment.amount)}</td>
+                            <td>${escapeHtml(payment.date || '-')}</td>
+                            <td>${escapeHtml(payment.payment_method || '-')}</td>
+                            <td>${escapeHtml(payment.due_days !== null && payment.due_days !== undefined ? payment.due_days : '-')}</td>
+                            <td>
+                                ${payment.image_url
+                                    ? `<a href="${escapeHtml(payment.image_url)}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-primary">Ver foto</a>`
+                                    : '<span class="text-muted">Sin foto</span>'}
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+
+                $('#portfolioQuotaContent').html(`
+                    ${summaryHtml}
+                    <div class="mb-4">
+                        <h6 class="mb-3">Estado por cuota</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>Cuota</th>
+                                        <th>Fecha</th>
+                                        <th>Programado</th>
+                                        <th>Pagado</th>
+                                        <th>Debe</th>
+                                        <th>Estado</th>
+                                        <th>Detalle por integrante</th>
+                                    </tr>
+                                </thead>
+                                <tbody>${quotaRows || emptyRow(7)}</tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="mb-4">
+                        <h6 class="mb-3">Resumen por integrante</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>Integrante</th>
+                                        <th>Documento</th>
+                                        <th>Programado</th>
+                                        <th>Pagado</th>
+                                        <th>Debe</th>
+                                        <th>Cuotas pagadas</th>
+                                        <th>Cuotas pendientes</th>
+                                    </tr>
+                                </thead>
+                                <tbody>${memberRows || emptyRow(7)}</tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div>
+                        <h6 class="mb-3">Historial de pagos registrados</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>Cuota</th>
+                                        <th>Integrante</th>
+                                        <th>Monto</th>
+                                        <th>Fecha pago</th>
+                                        <th>Metodo</th>
+                                        <th>Dias mora</th>
+                                        <th>Comprobante</th>
+                                    </tr>
+                                </thead>
+                                <tbody>${paymentRows || emptyRow(7)}</tbody>
+                            </table>
+                        </div>
+                    </div>
+                `);
+            }
+
+            function openPendingQuotas(contractId, clientLabel) {
+                if (!contractId) {
+                    return;
+                }
+
+                $('#portfolioQuotaModalTitle').text('Cuotas pendientes');
+                $('#portfolioQuotaModalSubtitle').text(clientLabel || '');
+                setQuotaLoading();
+                $('#portfolioQuotaModal').modal('show');
+
+                $.ajax({
+                    url: "{{ route('quotas.api') }}",
+                    method: 'GET',
+                    data: {
+                        contract_id: contractId,
+                        as_of: $('[name="end_date_2"]').val() || '',
+                        detail_mode: 'portfolio'
+                    },
+                    success: function(data) {
+                        renderPendingQuotas(data || {});
+                    },
+                    error: function() {
+                        $('#portfolioQuotaContent').html('<div class="text-center py-4">No se pudo cargar el detalle</div>');
+                    }
+                });
+            }
+
             function renderQuotas(items) {
                 $('#portfolioCardTableHead').html(`
                     <tr>
@@ -425,6 +678,7 @@
                         <th>Pagare</th>
                         <th>Cliente / Grupo</th>
                         <th>Tipo</th>
+                        <th>Clientes</th>
                         <th>Asesor</th>
                         <th>Fecha contrato</th>
                         <th>Capital</th>
@@ -432,6 +686,7 @@
                         <th>Mora 1-120</th>
                         <th>Mora >120</th>
                         <th>Cuotas pendientes</th>
+                        <th>Accion</th>
                     </tr>
                 `);
 
@@ -441,6 +696,7 @@
                             <td>${escapeHtml(item.number_pagare || '-')}</td>
                             <td>${escapeHtml(clientName(item))}</td>
                             <td>${escapeHtml(item.client_type || '-')}</td>
+                            <td>${escapeHtml(item.client_count || 0)}</td>
                             <td>${escapeHtml(item.seller_name || '-')}</td>
                             <td>${escapeHtml(item.date || '-')}</td>
                             <td>${money(item.requested_amount)}</td>
@@ -448,11 +704,20 @@
                             <td>${money(item.arrears_1_120)}</td>
                             <td>${money(item.arrears_over_120)}</td>
                             <td>${escapeHtml(item.pending_quotas_count || 0)}</td>
+                            <td>
+                                <button
+                                    type="button"
+                                    class="btn btn-sm btn-primary js-view-pending-quotas"
+                                    data-contract-id="${escapeHtml(item.contract_id || '')}"
+                                    data-client-label="${escapeHtml(clientName(item))}">
+                                    Ver
+                                </button>
+                            </td>
                         </tr>
                     `;
                 }).join('');
 
-                $('#portfolioCardTableBody').html(rows || emptyRow(10));
+                $('#portfolioCardTableBody').html(rows || emptyRow(12));
             }
 
             function renderContracts(items) {
@@ -587,6 +852,10 @@
                     e.preventDefault();
                     $(this).trigger('click');
                 }
+            });
+
+            $(document).on('click', '.js-view-pending-quotas', function() {
+                openPendingQuotas($(this).data('contract-id'), $(this).data('client-label'));
             });
         })();
     </script>

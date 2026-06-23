@@ -38,6 +38,8 @@ class ContractController extends Controller
                 });
             })->when($request->seller_id, function ($query, $seller_id) {
                 return $query->where('seller_id', $seller_id);
+            })->when($request->status !== null && $request->status !== '', function ($query) use ($request) {
+                return $query->where('paid', $request->status);
             })->when($request->start_date, function ($query, $start_date) {
                 return $query->whereDate('date', '>=', $start_date);
             })->when($request->end_date, function ($query, $end_date) {

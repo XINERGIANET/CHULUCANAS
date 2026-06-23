@@ -171,16 +171,24 @@ class PortfolioService
         if (in_array($card, ['active_clients', 'clients_over_120', 'individual_group_clients'], true)) {
             $query = $this->contractBalanceDetailsQuery($asOf, $filters, $user);
 
-            if ($card === 'clients_over_120') {
+            if ($card === 'active_clients') {
+                $query->havingRaw('COALESCE(client_counts.client_count, 0) > 0');
+            } elseif ($card === 'clients_over_120') {
                 $query->havingRaw("SUM(CASE WHEN DATEDIFF(?, q.quota_date) > 120 THEN q.amount - q.paid_to_cutoff ELSE 0 END) > 0.009", [$asOf]);
             }
 
-            $items = $query->get();
+            $items = $query->get()->map(function ($item) use ($card) {
+                $item->client_count = (int) ($card === 'clients_over_120'
+                    ? ($item->client_count_over_120 ?? 0)
+                    : ($item->client_count ?? 0));
+
+                return $item;
+            });
 
             return [
                 'status' => true,
                 'type' => 'clients',
-                'total' => $items->count(),
+                'total' => (int) $items->sum('client_count'),
                 'items' => $items,
             ];
         }
@@ -237,18 +245,23 @@ class PortfolioService
             ", [$asOf, $asOf])
             ->first();
 
-        $totals = (clone $rowsAfterMilestone)
+        $amountTotals = (clone $rowsAfterMilestone)
             ->whereRaw('(q.amount - q.paid_to_cutoff) > 0.009')
             ->selectRaw("
                 COALESCE(SUM(q.amount - q.paid_to_cutoff), 0) as portfolio_after_milestone,
                 COALESCE(SUM(CASE WHEN DATEDIFF(?, q.quota_date) > 120 THEN q.amount - q.paid_to_cutoff ELSE 0 END), 0) as arrears_over_120_post_hito,
-                COALESCE(SUM(CASE WHEN DATEDIFF(?, q.quota_date) <= 0 THEN q.amount - q.paid_to_cutoff ELSE 0 END), 0) as current_installments,
-                COUNT(DISTINCT CONCAT(q.contract_id, '|', q.quota_number)) as pending_quotas_count,
-                COUNT(DISTINCT q.contract_id) as active_clients,
-                COUNT(DISTINCT CASE WHEN DATEDIFF(?, q.quota_date) > 120 THEN q.contract_id END) as clients_over_120,
-                COUNT(DISTINCT CASE WHEN q.client_type = 'Personal' THEN q.contract_id END) as individual_clients,
-                COUNT(DISTINCT CASE WHEN q.client_type = 'Grupo' THEN q.contract_id END) as group_clients
-            ", [$asOf, $asOf, $asOf])
+                COALESCE(SUM(CASE WHEN DATEDIFF(?, q.quota_date) <= 0 THEN q.amount - q.paid_to_cutoff ELSE 0 END), 0) as current_installments
+            ", [$asOf, $asOf])
+            ->first();
+
+        $clientTotals = DB::query()
+            ->fromSub($this->clientSnapshotQuery($asOf, $filters, $user), 'c')
+            ->selectRaw("
+                COUNT(DISTINCT CASE WHEN c.arrears_over_120 <= 0.009 THEN c.client_key END) as active_clients,
+                COUNT(DISTINCT CASE WHEN c.arrears_over_120 > 0.009 THEN c.client_key END) as clients_over_120,
+                COUNT(DISTINCT CASE WHEN c.arrears_over_120 <= 0.009 AND c.client_type = 'Personal' THEN c.client_key END) as individual_clients,
+                COUNT(DISTINCT CASE WHEN c.arrears_over_120 <= 0.009 AND c.client_type = 'Grupo' THEN c.client_key END) as group_clients
+            ")
             ->first();
 
         $disbursed = $this->contractsQuery($asOf, $filters, $user)
@@ -268,25 +281,27 @@ class PortfolioService
 
         $arrears1To120 = (float) ($arrearsTotals->arrears_1_120 ?? 0);
         $arrearsOver120 = (float) ($arrearsTotals->arrears_over_120 ?? 0);
-        $portfolioAfterMilestone = (float) ($totals->portfolio_after_milestone ?? 0);
-        $currentPortfolio = max(0, $portfolioAfterMilestone - (float) ($totals->arrears_over_120_post_hito ?? 0));
+        $portfolioAfterMilestone = (float) ($amountTotals->portfolio_after_milestone ?? 0);
+        $currentPortfolio = max(0, $portfolioAfterMilestone - (float) ($amountTotals->arrears_over_120_post_hito ?? 0));
         $portfolioForPercent = max(0, $gross - $arrearsOver120);
 
         return [
             'gross_portfolio' => round($gross, 2),
             'current_portfolio' => round($currentPortfolio, 2),
-            'current_installments' => round((float) ($totals->current_installments ?? 0), 2),
+            'current_installments' => round((float) ($amountTotals->current_installments ?? 0), 2),
             'arrears_1_120' => round($arrears1To120, 2),
             'arrears_over_120' => round($arrearsOver120, 2),
             'arrears_total' => round($arrears1To120 + $arrearsOver120, 2),
             'arrears_percent' => $portfolioForPercent > 0 ? round(($arrears1To120 / $portfolioForPercent) * 100, 2) : 0,
-            'active_clients' => (int) ($totals->active_clients ?? 0),
-            'clients_over_120' => (int) ($totals->clients_over_120 ?? 0),
-            'individual_clients' => (int) ($totals->individual_clients ?? 0),
-            'group_clients' => (int) ($totals->group_clients ?? 0),
+            'active_clients' => (int) ($clientTotals->active_clients ?? 0),
+            'clients_over_120' => (int) ($clientTotals->clients_over_120 ?? 0),
+            'individual_clients' => (int) ($clientTotals->individual_clients ?? 0),
+            'group_clients' => (int) ($clientTotals->group_clients ?? 0),
             'finished_clients_with_arrears_1_120' => $finishedWithArrears,
             'disbursed_amount' => round((float) $disbursed, 2),
-            'pending_quotas_count' => (int) ($totals->pending_quotas_count ?? 0),
+            'pending_quotas_count' => (int) ((clone $rowsAfterMilestone)
+                ->whereRaw('(q.amount - q.paid_to_cutoff) > 0.009')
+                ->count(DB::raw("DISTINCT CONCAT(q.contract_id, '|', q.quota_number)"))),
         ];
     }
 
@@ -374,7 +389,7 @@ class PortfolioService
     private function quotaSnapshotQuery(string $asOf, array $filters, $user, bool $afterMilestoneOnly = true)
     {
         $milestoneDate = $this->date($asOf)->toDateString();
-        $paymentCutoffDate = $this->date($asOf)->subDay()->toDateString();
+        $paymentCutoffDate = $this->date($asOf)->toDateString();
 
         return DB::table('quotas')
             ->join('contracts', 'contracts.id', '=', 'quotas.contract_id')
@@ -446,10 +461,22 @@ class PortfolioService
 
     private function contractBalanceDetailsQuery(string $asOf, array $filters, $user)
     {
+        $clientCounts = DB::query()
+            ->fromSub($this->clientSnapshotQuery($asOf, $filters, $user), 'c')
+            ->groupBy('c.contract_id')
+            ->selectRaw("
+                c.contract_id,
+                COUNT(DISTINCT CASE WHEN c.arrears_over_120 <= 0.009 THEN c.client_key END) as client_count,
+                COUNT(DISTINCT CASE WHEN c.arrears_over_120 > 0.009 THEN c.client_key END) as client_count_over_120
+            ");
+
         return DB::query()
-            ->fromSub($this->quotaSnapshotQuery($asOf, $filters, $user), 'q')
+            ->fromSub($this->quotaSnapshotQuery($asOf, $filters, $user, false), 'q')
             ->join('contracts', 'contracts.id', '=', 'q.contract_id')
             ->leftJoin('users', 'users.id', '=', 'contracts.seller_id')
+            ->leftJoinSub($clientCounts, 'client_counts', function ($join) {
+                $join->on('client_counts.contract_id', '=', 'contracts.id');
+            })
             ->whereRaw('(q.amount - q.paid_to_cutoff) > 0.009')
             ->groupBy(
                 'contracts.id',
@@ -459,9 +486,12 @@ class PortfolioService
                 'contracts.group_name',
                 'contracts.requested_amount',
                 'contracts.date',
-                'users.name'
+                'users.name',
+                'client_counts.client_count',
+                'client_counts.client_count_over_120'
             )
             ->selectRaw("
+                contracts.id as contract_id,
                 contracts.number_pagare,
                 contracts.client_type,
                 contracts.name,
@@ -472,9 +502,38 @@ class PortfolioService
                 SUM(q.amount - q.paid_to_cutoff) as balance,
                 SUM(CASE WHEN DATEDIFF(?, q.quota_date) BETWEEN 1 AND 120 THEN q.amount - q.paid_to_cutoff ELSE 0 END) as arrears_1_120,
                 SUM(CASE WHEN DATEDIFF(?, q.quota_date) > 120 THEN q.amount - q.paid_to_cutoff ELSE 0 END) as arrears_over_120,
-                COUNT(DISTINCT q.quota_number) as pending_quotas_count
+                COUNT(DISTINCT q.quota_number) as pending_quotas_count,
+                COALESCE(client_counts.client_count, 0) as client_count,
+                COALESCE(client_counts.client_count_over_120, 0) as client_count_over_120
             ", [$asOf, $asOf])
             ->orderByDesc('contracts.date');
+    }
+
+    private function clientSnapshotQuery(string $asOf, array $filters, $user)
+    {
+        return DB::query()
+            ->fromSub($this->quotaSnapshotQuery($asOf, $filters, $user, false), 'q')
+            ->whereRaw('(q.amount - q.paid_to_cutoff) > 0.009')
+            ->groupBy(
+                'q.contract_id',
+                'q.client_type',
+                DB::raw("
+                    CASE
+                        WHEN q.client_type = 'Personal' THEN CONCAT('P|', q.contract_id)
+                        ELSE CONCAT('G|', q.contract_id, '|', COALESCE(NULLIF(TRIM(q.person_document), ''), NULLIF(TRIM(q.person_name), ''), 'SIN_PERSONA'))
+                    END
+                ")
+            )
+            ->selectRaw("
+                q.contract_id,
+                q.client_type,
+                CASE
+                    WHEN q.client_type = 'Personal' THEN CONCAT('P|', q.contract_id)
+                    ELSE CONCAT('G|', q.contract_id, '|', COALESCE(NULLIF(TRIM(q.person_document), ''), NULLIF(TRIM(q.person_name), ''), 'SIN_PERSONA'))
+                END as client_key,
+                SUM(q.amount - q.paid_to_cutoff) as balance,
+                SUM(CASE WHEN DATEDIFF(?, q.quota_date) > 120 THEN q.amount - q.paid_to_cutoff ELSE 0 END) as arrears_over_120
+            ", [$asOf]);
     }
 
     private function contractsQuery(string $asOf, array $filters, $user)
