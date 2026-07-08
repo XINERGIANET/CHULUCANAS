@@ -283,8 +283,6 @@ class PortfolioService
         $arrearsOver120 = (float) ($arrearsTotals->arrears_over_120 ?? 0);
         $portfolioAfterMilestone = (float) ($amountTotals->portfolio_after_milestone ?? 0);
         $currentPortfolio = max(0, $portfolioAfterMilestone - (float) ($amountTotals->arrears_over_120_post_hito ?? 0));
-        $portfolioForPercent = max(0, $gross - $arrearsOver120);
-
         return [
             'gross_portfolio' => round($gross, 2),
             'current_portfolio' => round($currentPortfolio, 2),
@@ -292,7 +290,7 @@ class PortfolioService
             'arrears_1_120' => round($arrears1To120, 2),
             'arrears_over_120' => round($arrearsOver120, 2),
             'arrears_total' => round($arrears1To120 + $arrearsOver120, 2),
-            'arrears_percent' => $portfolioForPercent > 0 ? round(($arrears1To120 / $portfolioForPercent) * 100, 2) : 0,
+            'arrears_percent' => $currentPortfolio > 0 ? round(($arrears1To120 / $currentPortfolio) * 100, 2) : 0,
             'active_clients' => (int) ($clientTotals->active_clients ?? 0),
             'clients_over_120' => (int) ($clientTotals->clients_over_120 ?? 0),
             'individual_clients' => (int) ($clientTotals->individual_clients ?? 0),
