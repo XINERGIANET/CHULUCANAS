@@ -438,22 +438,21 @@ class WebController extends Controller
 
     public function apiReniec(Request $request)
     {
-        $response = Http::withHeaders([
-            'Authorization' => 'Bearer ' . config('apireniec.token')
-        ])->get(config('apireniec.url'), [
-            'numero' => $request->dni
-        ]);
+        $response = Http::withToken((string) config('apireniec.key'))
+            ->timeout(15)
+            ->post((string) config('apireniec.url'), [
+                'dni' => $request->dni,
+            ]);
 
-        $data = $response->json();
+        $data = (array) $response->json();
 
-        if ($response->successful()) {
-
+        if ($response->successful() && ($data['success'] ?? false)) {
+            $resultado = (array) ($data['data'] ?? []);
             return response()->json([
                 'status' => true,
-                'name' => $data['nombres'] . ' ' . $data['apellidoPaterno'] . ' ' . $data['apellidoMaterno']
+                'name' => ($resultado['nombres'] ?? '') . ' ' . ($resultado['apellido_paterno'] ?? '') . ' ' . ($resultado['apellido_materno'] ?? '')
             ]);
         } else {
-
             return response()->json([
                 'status' => false
             ]);
