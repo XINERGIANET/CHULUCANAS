@@ -1092,6 +1092,14 @@ class WebController extends Controller
             })
             ->sum('amount');
 
+        $classifiedPaymentGroups = $this->rentabilidadPaymentGroupsByStatus($request, $user);
+        $today_advance_payments_people = $classifiedPaymentGroups['advance']->count();
+        $today_advance_payments = $classifiedPaymentGroups['advance']->sum(fn($paymentsGroup) => $paymentsGroup->sum('amount'));
+        $today_timely_payments_people = $classifiedPaymentGroups['timely']->count();
+        $today_timely_payments = $classifiedPaymentGroups['timely']->sum(fn($paymentsGroup) => $paymentsGroup->sum('amount'));
+        $today_late_payments_people = $classifiedPaymentGroups['late']->count();
+        $today_late_payments = $classifiedPaymentGroups['late']->sum(fn($paymentsGroup) => $paymentsGroup->sum('amount'));
+
         $advance_people = (int) ($today_advance_payments_people ?? 0);
         $timely_people = (int) ($today_timely_payments_people ?? 0);
         $projected_people = (int) ($today_projected_people ?? 0);
@@ -1112,6 +1120,8 @@ class WebController extends Controller
             'today_projected',
             'today_advance_payments',
             'today_advance_payments_people',
+            'today_late_payments',
+            'today_late_payments_people',
             'today_punctual_percent'
         ));
     }
@@ -1686,7 +1696,7 @@ class WebController extends Controller
     {
         $user = auth()->user();
         $card = $request->card;
-        $allowedCards = ['advance', 'today', 'timely', 'projected'];
+        $allowedCards = ['advance', 'today', 'timely', 'late', 'projected'];
 
         if (!in_array($card, $allowedCards, true)) {
             return response()->json([
@@ -1800,6 +1810,18 @@ class WebController extends Controller
             return response()->json([
                 'status' => true,
                 'type' => 'quotas',
+                'total' => $items->count(),
+                'items' => $items,
+            ]);
+        }
+
+        if (in_array($card, ['advance', 'timely', 'late'], true)) {
+            $paymentGroups = $this->rentabilidadPaymentGroupsByStatus($request, $user)[$card];
+            $items = $this->rentabilidadPaymentGroupsToItems($paymentGroups);
+
+            return response()->json([
+                'status' => true,
+                'type' => 'payments',
                 'total' => $items->count(),
                 'items' => $items,
             ]);
@@ -2197,6 +2219,143 @@ class WebController extends Controller
             'total' => $items->count(),
             'items' => $items,
         ]);
+    }
+
+    private function rentabilidadPaymentGroupsByStatus(Request $request, $user): array
+    {
+        $payments = Payment::active()
+            ->when($request->start_date_1, function ($query, $startDate) {
+                return $query->whereHas('quota', function ($q) use ($startDate) {
+                    return $q->whereDate('date', '>=', $startDate);
+                });
+            })
+            ->when($request->end_date_1, function ($query, $endDate) {
+                return $query->whereHas('quota', function ($q) use ($endDate) {
+                    return $q->whereDate('date', '<=', $endDate);
+                });
+            })
+            ->whereHas('quota', function ($q) {
+                return $q->where('paid', 1);
+            })
+            ->when($user->hasRole('seller'), function ($query) use ($user) {
+                return $query->whereHas('quota.contract', function ($q) use ($user) {
+                    return $q->where('seller_id', $user->id);
+                });
+            })
+            ->when($request->credit_manager_id, function ($query, $creditManagerId) {
+                return $query->whereHas('quota.contract.seller', function ($q) use ($creditManagerId) {
+                    return $q->where('credit_manager_id', $creditManagerId);
+                });
+            })
+            ->when($request->seller_id_2, function ($query, $sellerId) {
+                return $query->whereHas('quota.contract', function ($q) use ($sellerId) {
+                    return $q->where('seller_id', $sellerId);
+                });
+            })
+            ->with(['quota.contract', 'payment_method'])
+            ->orderBy('date', 'DESC')
+            ->orderBy('id', 'DESC')
+            ->get();
+
+        $grouped = $payments->groupBy(function ($payment) {
+            $quota = $payment->quota;
+            $contract = $quota ? $quota->contract : null;
+            $clientKey = $contract && $contract->client_type === 'Personal'
+                ? ($contract->document ?: $contract->name ?? '')
+                : ($contract->group_name ?: $contract->name ?? '');
+
+            return ($clientKey ?: 'none') . '|' . ($quota->number ?? 'none');
+        });
+
+        $byStatus = [
+            'advance' => collect(),
+            'timely' => collect(),
+            'late' => collect(),
+        ];
+
+        foreach ($grouped as $key => $paymentsGroup) {
+            $first = $paymentsGroup->first();
+            $quota = $first ? $first->quota : null;
+            $paymentDate = $paymentsGroup->max('date');
+
+            if (!$quota || !$quota->date || !$paymentDate) {
+                continue;
+            }
+
+            $paymentDate = \Carbon\Carbon::parse($paymentDate)->startOfDay();
+            $quotaDate = $quota->date->copy()->startOfDay();
+
+            if ($paymentDate->lt($quotaDate)) {
+                $byStatus['advance']->put($key, $paymentsGroup);
+            } elseif ($paymentDate->isSameDay($quotaDate)) {
+                $byStatus['timely']->put($key, $paymentsGroup);
+            } else {
+                $byStatus['late']->put($key, $paymentsGroup);
+            }
+        }
+
+        return $byStatus;
+    }
+
+    private function rentabilidadPaymentGroupsToItems($paymentGroups)
+    {
+        $quotaContractIds = $paymentGroups
+            ->flatMap(fn($group) => $group)
+            ->map(fn($payment) => optional($payment->quota)->contract_id)
+            ->filter()
+            ->unique()
+            ->values();
+
+        $quotaAmounts = $quotaContractIds->isEmpty()
+            ? collect()
+            : Quota::whereIn('contract_id', $quotaContractIds)
+                ->select('contract_id', 'number', DB::raw('SUM(amount) as total'))
+                ->groupBy('contract_id', 'number')
+                ->get()
+                ->keyBy(fn($quota) => $quota->contract_id . '_' . $quota->number);
+
+        return $paymentGroups
+            ->map(function ($group) use ($quotaAmounts) {
+                $first = $group->first();
+                $quota = $first ? $first->quota : null;
+                $contract = $quota ? $quota->contract : null;
+
+                $methods = $group->map(function ($payment) {
+                    $name = optional($payment->payment_method)->name ?? 'N/A';
+                    return $name === 'Efectivo' ? 'Retanqueo' : $name;
+                })->unique()->values()->toArray();
+
+                $paymentDate = $group->max('date');
+                $dueDays = $group->sortByDesc('date')->first()->due_days ?? null;
+
+                $clientLabel = $contract ? $contract->client() : 'N/A';
+                if ($contract && $contract->client_type === 'Grupo') {
+                    $personNames = $group
+                        ->map(fn($payment) => $payment->quota ? $payment->quota->person_name : null)
+                        ->unique()
+                        ->filter()
+                        ->values();
+
+                    if ($personNames->isNotEmpty()) {
+                        $clientLabel = $clientLabel . ' (' . $personNames->implode(', ') . ')';
+                    }
+                }
+
+                return [
+                    'client' => $clientLabel,
+                    'contract_date' => $contract && $contract->date ? $contract->date->format('d/m/Y') : null,
+                    'quota_number' => $quota ? $quota->number : null,
+                    'person_name' => $quota ? $quota->person_name : null,
+                    'amount' => $group->sum('amount'),
+                    'quota_amount' => $quotaAmounts->get(($contract->id ?? 'none') . '_' . ($quota->number ?? 'none'))->total ?? 0,
+                    'pending_amount' => max(0, ($quotaAmounts->get(($contract->id ?? 'none') . '_' . ($quota->number ?? 'none'))->total ?? 0) - $group->sum('amount')),
+                    'payment_method' => implode(' / ', $methods),
+                    'quota_date' => $quota && $quota->date ? $quota->date->format('d/m/Y') : null,
+                    'payment_date' => $paymentDate ? \Carbon\Carbon::parse($paymentDate)->format('d/m/Y') : null,
+                    'due_days' => $dueDays,
+                ];
+            })
+            ->values();
     }
 
     // Calculos para el analisis de carteras por asesor

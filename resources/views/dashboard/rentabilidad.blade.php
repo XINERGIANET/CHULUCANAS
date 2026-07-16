@@ -171,6 +171,18 @@
                     </div>
                     <div class="col-md-6">
                         <div class="card mb-4 js-rentabilidad-card" role="button" tabindex="0"
+                            data-card="late" data-title="Pagos atrasados de hoy">
+                            <div class="card-body text-center">
+                                <h5 class="card-title">
+                                    Pagos atrasados de hoy
+                                </h5>
+                                <span
+                                    class="block fs-1 text-center fw-semibold"><i class="bi bi-person-circle"></i> {{ $today_late_payments_people ?? 0 }} </span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card mb-4 js-rentabilidad-card" role="button" tabindex="0"
                             data-card="projected" data-title="Proyectado para hoy">
                             <div class="card-body text-center">
                                 <h5 class="card-title text-center">
@@ -400,6 +412,7 @@
                             <td>${escapeHtml(item.quota_number || '')}</td>
                             <td>S/${parseFloat(item.amount || 0).toFixed(2)}</td>
                             <td>S/${parseFloat(item.quota_amount || 0).toFixed(2)}</td>
+                            <td>S/${parseFloat(item.pending_amount || 0).toFixed(2)}</td>
                             <td>${escapeHtml(item.payment_method || '')}</td>
                             <td>${escapeHtml(item.quota_date || '')}</td>
                             <td>${escapeHtml(item.payment_date || '')}</td>
@@ -409,7 +422,7 @@
                 }).join('');
 
                 if (!rows) {
-                    rows = '<tr><td colspan="8" class="text-center">No se encontraron pagos</td></tr>';
+                    rows = '<tr><td colspan="9" class="text-center">No se encontraron pagos</td></tr>';
                 }
 
                 $('#rentabilidadCardTableHead').html(`
@@ -418,6 +431,7 @@
                         <th>Cuota</th>
                         <th>Monto Pagado</th>
                         <th>Monto Total Cuota</th>
+                        <th>Monto Pendiente</th>
                         <th>Método</th>
                         <th>Fecha cuota</th>
                         <th>Fecha pago</th>
