@@ -868,11 +868,47 @@
             });
         });
 
+        function cleanClientValue(value) {
+            if (value === undefined || value === null) return '';
+            value = String(value).trim();
+            if (value === '' || value.toLowerCase() === 'null' || value.toLowerCase() === 'undefined') return '';
+            return value;
+        }
+
+        function fillPersonalClient(data) {
+            $('#name').attr('readonly', true).val(cleanClientValue(data.name));
+            $('#phone').val(cleanClientValue(data.phone));
+            $('#address').val(cleanClientValue(data.address));
+            $('#reference').val(cleanClientValue(data.reference));
+            $('#home_type').val(cleanClientValue(data.home_type));
+            $('#business_line').val(cleanClientValue(data.business_line));
+            $('#business_address').val(cleanClientValue(data.business_address));
+            $('input[name="business_start_date"]').val(cleanClientValue(data.business_start_date).substring(0, 10));
+            $('#civil_status').val(cleanClientValue(data.civil_status)).trigger('change');
+            $('#husband_name').val(cleanClientValue(data.husband_name));
+            $('#husband_document').val(cleanClientValue(data.husband_document));
+        }
+
+        function clearPersonalClient(allowManualName) {
+            $('#name').val('').attr('readonly', !allowManualName);
+            $('#phone').val('');
+            $('#address').val('');
+            $('#reference').val('');
+            $('#home_type').val('');
+            $('#business_line').val('');
+            $('#business_address').val('');
+            $('input[name="business_start_date"]').val('');
+            $('#civil_status').val('').trigger('change');
+            $('#husband_name').val('');
+            $('#husband_document').val('');
+        }
+
         $('#btn-search').click(function() {
 
             var dni = $('#document').val().trim();
 
             if (dni.length != 8) {
+                clearPersonalClient(false);
                 return;
             }
 
@@ -889,11 +925,9 @@
                     Swal.close();
 
                     if (data.status) {
-                        $('#name').attr('readonly', true);
-                        $('#name').val(data.name);
+                        fillPersonalClient(data);
                     } else {
-                        $('#name').val('');
-                        $('#name').attr('readonly', false);
+                        clearPersonalClient(true);
                         $('#name').focus();
                     }
                 },
@@ -909,10 +943,14 @@
             var $row = $(this).closest('.row');
             var $dniInput = $row.find('input[name="documents[]"]');
             var $nameInput = $row.find('input[name="names[]"]');
+            var $addressInput = $row.find('input[name="addresses[]"]');
+            var $phoneInput = $row.find('input[name="phones[]"]');
             var dni = $dniInput.val().trim();
 
             if (dni.length != 8) {
                 $nameInput.val('');
+                $addressInput.val('');
+                $phoneInput.val('');
                 return;
             }
 
@@ -928,9 +966,13 @@
                     Swal.close();
                     if (data.status) {
                         $nameInput.attr('readonly', true);
-                        $nameInput.val(data.name);
+                        $nameInput.val(cleanClientValue(data.name));
+                        $addressInput.val(cleanClientValue(data.address));
+                        $phoneInput.val(cleanClientValue(data.phone));
                     } else {
                         $nameInput.val('');
+                        $addressInput.val('');
+                        $phoneInput.val('');
                         $nameInput.attr('readonly', false);
                         $nameInput.focus();
                     }
