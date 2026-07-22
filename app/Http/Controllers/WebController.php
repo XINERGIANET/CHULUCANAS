@@ -438,20 +438,10 @@ class WebController extends Controller
 
     public function apiReniec(Request $request)
     {
-        $dni = trim((string) $request->dni);
-        $localClient = $this->findLocalClientByDni($dni);
-
-        if ($localClient) {
-            return response()->json(array_merge([
-                'status' => true,
-                'source' => 'database',
-            ], $localClient));
-        }
-
         $response = Http::withToken((string) config('apireniec.key'))
             ->timeout(15)
             ->post((string) config('apireniec.url'), [
-                'dni' => $dni,
+                'dni' => $request->dni,
             ]);
 
         $data = (array) $response->json();
@@ -460,96 +450,13 @@ class WebController extends Controller
             $resultado = (array) ($data['data'] ?? []);
             return response()->json([
                 'status' => true,
-                'source' => 'reniec',
-                'document' => $dni,
-                'name' => trim(($resultado['nombres'] ?? '') . ' ' . ($resultado['apellido_paterno'] ?? '') . ' ' . ($resultado['apellido_materno'] ?? ''))
+                'name' => ($resultado['nombres'] ?? '') . ' ' . ($resultado['apellido_paterno'] ?? '') . ' ' . ($resultado['apellido_materno'] ?? '')
             ]);
         } else {
             return response()->json([
                 'status' => false
             ]);
         }
-    }
-
-    private function findLocalClientByDni(string $dni): ?array
-    {
-        if (strlen($dni) !== 8) {
-            return null;
-        }
-
-        $personal = Contract::active()
-            ->where('client_type', 'Personal')
-            ->where('document', $dni)
-            ->latest('date')
-            ->latest('id')
-            ->first();
-
-        $groupContract = Contract::active()
-            ->where('client_type', 'Grupo')
-            ->where('people', 'like', '%' . $dni . '%')
-            ->latest('date')
-            ->latest('id')
-            ->get()
-            ->first(function ($contract) use ($dni) {
-                $people = json_decode($contract->people, true) ?: [];
-
-                return collect($people)->contains(function ($person) use ($dni) {
-                    return (string) ($person['document'] ?? '') === $dni;
-                });
-            });
-
-        if ($personal && $groupContract) {
-            $personalDate = optional($personal->date)->timestamp ?? 0;
-            $groupDate = optional($groupContract->date)->timestamp ?? 0;
-
-            if ($groupDate > $personalDate || ($groupDate === $personalDate && $groupContract->id > $personal->id)) {
-                return $this->groupPersonPayload($groupContract, $dni);
-            }
-        }
-
-        if ($personal) {
-            return [
-                'client_type' => 'Personal',
-                'document' => $personal->document,
-                'name' => $personal->name,
-                'phone' => $personal->phone,
-                'address' => $personal->address,
-                'reference' => $personal->reference,
-                'home_type' => $personal->home_type,
-                'business_line' => $personal->business_line,
-                'business_address' => $personal->business_address,
-                'business_start_date' => $personal->business_start_date,
-                'civil_status' => $personal->civil_status,
-                'husband_name' => $personal->husband_name,
-                'husband_document' => $personal->husband_document,
-            ];
-        }
-
-        if ($groupContract) {
-            return $this->groupPersonPayload($groupContract, $dni);
-        }
-
-        return null;
-    }
-
-    private function groupPersonPayload(Contract $contract, string $dni): ?array
-    {
-        $people = json_decode($contract->people, true) ?: [];
-        $person = collect($people)->first(function ($person) use ($dni) {
-            return (string) ($person['document'] ?? '') === $dni;
-        });
-
-        if (!$person) {
-            return null;
-        }
-
-        return [
-            'client_type' => 'Grupo',
-            'document' => $person['document'] ?? $dni,
-            'name' => $person['name'] ?? '',
-            'phone' => $person['phone'] ?? '',
-            'address' => $person['address'] ?? '',
-        ];
     }
 
     public function indicadores(Request $request)
@@ -2318,14 +2225,10 @@ class WebController extends Controller
     {
         $payments = Payment::active()
             ->when($request->start_date_1, function ($query, $startDate) {
-                return $query->whereHas('quota', function ($q) use ($startDate) {
-                    return $q->whereDate('date', '>=', $startDate);
-                });
+                return $query->whereDate('date', '>=', $startDate);
             })
             ->when($request->end_date_1, function ($query, $endDate) {
-                return $query->whereHas('quota', function ($q) use ($endDate) {
-                    return $q->whereDate('date', '<=', $endDate);
-                });
+                return $query->whereDate('date', '<=', $endDate);
             })
             ->whereHas('quota', function ($q) {
                 return $q->where('paid', 1);

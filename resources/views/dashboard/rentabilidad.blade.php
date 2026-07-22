@@ -171,10 +171,10 @@
                     </div>
                     <div class="col-md-6">
                         <div class="card mb-4 js-rentabilidad-card" role="button" tabindex="0"
-                            data-card="late" data-title="Pagos atrasados de hoy">
+                            data-card="late" data-title="Atrasados pagados hoy">
                             <div class="card-body text-center">
                                 <h5 class="card-title">
-                                    Pagos atrasados de hoy
+                                    Atrasados pagados hoy
                                 </h5>
                                 <span
                                     class="block fs-1 text-center fw-semibold"><i class="bi bi-person-circle"></i> {{ $today_late_payments_people ?? 0 }} </span>
