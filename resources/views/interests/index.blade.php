@@ -57,7 +57,10 @@
 
 			</div>
 			<button class="btn btn-primary">Filtrar</button>
-			<a href="{{ route('clients.index') }}" class="btn btn-danger">Limpiar</a>
+			<a href="{{ route('interests.monthly') }}" class="btn btn-danger">Limpiar</a>
+			<a href="{{ route('interests.monthly.excel', request()->all()) }}" class="btn btn-success" target="_blank">
+				<i class="ti ti-file-spreadsheet me-1"></i> Exportar a Excel
+			</a>
 		</form>
 	</div>
 	@endif

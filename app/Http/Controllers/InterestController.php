@@ -11,6 +11,7 @@ use Svg\Tag\Rect;
 use Symfony\Component\VarDumper\Caster\FrameStub;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\SBSExport;
+use App\Exports\InterestsExport;
 use Carbon\Carbon;
 
 class InterestController extends Controller
@@ -62,6 +63,53 @@ class InterestController extends Controller
         });
 
         return view('interests.index', compact('clients'));
+    }
+
+    public function excel(Request $request)
+    {
+        $month = $request->month;
+        $year = $request->year ?? date('Y');
+
+        $clients = Contract::active()->when($request->name, function ($query, $name) {
+            return $query->where('name', 'like', '%' . $name . '%')->orWhere('group_name', 'like', '%' . $name . '%');
+        })->when($request->start_date, function ($query, $start_date) {
+            return $query->whereDate('date', '>=', $start_date);
+        })->when($request->end_date, function ($query, $end_date) {
+            return $query->whereDate('date', '<=', $end_date);
+        })->latest('date')->latest('id')->get();
+
+        $clients->transform(function ($contract) use ($month, $year) {
+            $contractInterest = (float) ($contract->interest);
+
+            if ($contract->client_type == 'Grupo') {
+                $totalQuotas = Quota::where('contract_id', $contract->id)->count();
+                $interestPerQuota = $totalQuotas > 0 ? ($contractInterest / $totalQuotas) : 0;
+            } else {
+                $quotasNumber = (int) ($contract->quotas_number);
+                $interestPerQuota = $quotasNumber > 0 ? ($contractInterest / $quotasNumber) : 0;
+            }
+
+            if ($month) {
+                $quotasCount = Quota::where('contract_id', $contract->id)
+                    ->whereMonth('date', $month)
+                    ->whereYear('date', $year)
+                    ->count();
+            } else {
+                $quotasCount = Quota::where('contract_id', $contract->id)
+                    ->whereYear('date', $year)
+                    ->count();
+            }
+
+            $contract->filtered_interest = $interestPerQuota * $quotasCount;
+
+            return $contract;
+        });
+
+        $monthNames = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+        $monthLabel = $month && isset($monthNames[$month - 1]) ? '_' . $monthNames[$month - 1] : '';
+        $filename = "Intereses_Mensuales" . $monthLabel . "_" . $year . ".xlsx";
+
+        return Excel::download(new InterestsExport($clients), $filename);
     }
 
     public function store(Request $request)

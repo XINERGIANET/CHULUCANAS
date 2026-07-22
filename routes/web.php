@@ -94,6 +94,7 @@ Route::middleware('auth')->group(function () {
 		Route::resource('transfers', TransferController::class);
 
 		Route::get('interests/monthly', [InterestController::class, 'index'])->name('interests.monthly');
+		Route::get('interests/monthly/excel', [InterestController::class, 'excel'])->name('interests.monthly.excel');
 		Route::get('interests/sbs', [InterestController::class, 'report_sbs'])->name('interests.sbs');
 		Route::get('interests/sbs-download', [InterestController::class, 'download_sbs'])->name('interests.excel_sbs');
 	});
