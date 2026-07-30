@@ -52,18 +52,12 @@ class PaymentController extends Controller
                 return $query->whereHas('quota.contract', function ($query) use ($seller_id) {
                     return $query->where('seller_id', $seller_id);
                 });
-            })->when($startDate && $rentabilidadCard !== 'projected', function ($query) use ($startDate) {
+            })->when($startDate && !in_array($rentabilidadCard, ['projected', 'advance', 'timely'], true), function ($query) use ($startDate) {
                 return $query->whereDate('date', '>=', $startDate);
-            })->when($endDate && $rentabilidadCard !== 'projected', function ($query) use ($endDate) {
+            })->when($endDate && !in_array($rentabilidadCard, ['projected', 'advance', 'timely'], true), function ($query) use ($endDate) {
                 return $query->whereDate('date', '<=', $endDate);
             })
-            ->when($rentabilidadCard === 'advance', function ($query) {
-                return $query->whereRaw('DATE(payments.date) < (SELECT DATE(quotas.date) FROM quotas WHERE quotas.id = payments.quota_id)');
-            })
-            ->when($rentabilidadCard === 'timely', function ($query) {
-                return $query->whereRaw('DATE(payments.date) = (SELECT DATE(quotas.date) FROM quotas WHERE quotas.id = payments.quota_id)');
-            })
-            ->when($rentabilidadCard === 'projected', function ($query) use ($startDate, $endDate) {
+            ->when(in_array($rentabilidadCard, ['projected', 'advance', 'timely'], true), function ($query) use ($startDate, $endDate) {
                 return $query->whereHas('quota', function ($q) use ($startDate, $endDate) {
                     if ($startDate) {
                         $q->whereDate('date', '>=', $startDate);
@@ -72,6 +66,12 @@ class PaymentController extends Controller
                         $q->whereDate('date', '<=', $endDate);
                     }
                 });
+            })
+            ->when($rentabilidadCard === 'advance', function ($query) {
+                return $query->whereRaw('DATE(payments.date) < (SELECT DATE(quotas.date) FROM quotas WHERE quotas.id = payments.quota_id)');
+            })
+            ->when($rentabilidadCard === 'timely', function ($query) {
+                return $query->whereRaw('DATE(payments.date) = (SELECT DATE(quotas.date) FROM quotas WHERE quotas.id = payments.quota_id)');
             })
             ->latest('date')->latest('id');
 

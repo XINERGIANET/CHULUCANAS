@@ -2223,7 +2223,45 @@ class WebController extends Controller
 
     private function rentabilidadPaymentGroupsByStatus(Request $request, $user): array
     {
-        $payments = Payment::active()
+        // 1. Pagos por fecha de cuotas (cronograma) para pagos adelantados y puntuales
+        $quotaPayments = Payment::active()
+            ->whereHas('quota', function ($q) use ($request) {
+                return $q->where('paid', 1)
+                    ->when($request->start_date_1, fn($q2, $startDate) => $q2->whereDate('date', '>=', $startDate))
+                    ->when($request->end_date_1, fn($q2, $endDate) => $q2->whereDate('date', '<=', $endDate));
+            })
+            ->when($user->hasRole('seller'), function ($query) use ($user) {
+                return $query->whereHas('quota.contract', function ($q) use ($user) {
+                    return $q->where('seller_id', $user->id);
+                });
+            })
+            ->when($request->credit_manager_id, function ($query, $creditManagerId) {
+                return $query->whereHas('quota.contract.seller', function ($q) use ($creditManagerId) {
+                    return $q->where('credit_manager_id', $creditManagerId);
+                });
+            })
+            ->when($request->seller_id_2, function ($query, $sellerId) {
+                return $query->whereHas('quota.contract', function ($q) use ($sellerId) {
+                    return $q->where('seller_id', $sellerId);
+                });
+            })
+            ->with(['quota.contract', 'payment_method'])
+            ->orderBy('date', 'DESC')
+            ->orderBy('id', 'DESC')
+            ->get();
+
+        $groupedQuotaPayments = $quotaPayments->groupBy(function ($payment) {
+            $quota = $payment->quota;
+            $contract = $quota ? $quota->contract : null;
+            $clientKey = $contract && $contract->client_type === 'Personal'
+                ? ($contract->document ?: $contract->name ?? '')
+                : ($contract->group_name ?: $contract->name ?? '');
+
+            return ($clientKey ?: 'none') . '|' . ($quota->number ?? 'none');
+        });
+
+        // 2. Pagos por fecha de pago real para atrasados pagados
+        $latePayments = Payment::active()
             ->when($request->start_date_1, function ($query, $startDate) {
                 return $query->whereDate('date', '>=', $startDate);
             })
@@ -2253,7 +2291,7 @@ class WebController extends Controller
             ->orderBy('id', 'DESC')
             ->get();
 
-        $grouped = $payments->groupBy(function ($payment) {
+        $groupedLatePayments = $latePayments->groupBy(function ($payment) {
             $quota = $payment->quota;
             $contract = $quota ? $quota->contract : null;
             $clientKey = $contract && $contract->client_type === 'Personal'
@@ -2269,7 +2307,34 @@ class WebController extends Controller
             'late' => collect(),
         ];
 
-        foreach ($grouped as $key => $paymentsGroup) {
+        // Pagos adelantados y puntuales (criterio: fecha de cuotas en cronograma)
+        foreach ($groupedQuotaPayments as $key => $paymentsGroup) {
+            $first = $paymentsGroup->first();
+            $quota = $first ? $first->quota : null;
+            $contract = $quota ? $quota->contract : null;
+            $paymentDate = $paymentsGroup->max('date');
+
+            if (!$quota || !$quota->date || !$paymentDate) {
+                continue;
+            }
+
+            $paymentDate = \Carbon\Carbon::parse($paymentDate)->startOfDay();
+            $quotaDate = $quota->date->copy()->startOfDay();
+
+            if ($paymentDate->lt($quotaDate)) {
+                // Los contratos grupales nunca van a adelantado (van a puntual)
+                if ($contract && $contract->client_type === 'Grupo') {
+                    $byStatus['timely']->put($key, $paymentsGroup);
+                } else {
+                    $byStatus['advance']->put($key, $paymentsGroup);
+                }
+            } elseif ($paymentDate->isSameDay($quotaDate)) {
+                $byStatus['timely']->put($key, $paymentsGroup);
+            }
+        }
+
+        // Pagos atrasados pagados (criterio: fecha de pago realizado en el rango de fechas)
+        foreach ($groupedLatePayments as $key => $paymentsGroup) {
             $first = $paymentsGroup->first();
             $quota = $first ? $first->quota : null;
             $paymentDate = $paymentsGroup->max('date');
@@ -2281,11 +2346,7 @@ class WebController extends Controller
             $paymentDate = \Carbon\Carbon::parse($paymentDate)->startOfDay();
             $quotaDate = $quota->date->copy()->startOfDay();
 
-            if ($paymentDate->lt($quotaDate)) {
-                $byStatus['advance']->put($key, $paymentsGroup);
-            } elseif ($paymentDate->isSameDay($quotaDate)) {
-                $byStatus['timely']->put($key, $paymentsGroup);
-            } else {
+            if ($paymentDate->gt($quotaDate)) {
                 $byStatus['late']->put($key, $paymentsGroup);
             }
         }
