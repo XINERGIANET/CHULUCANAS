@@ -576,10 +576,12 @@
                         // Para grupos: determinar el tipo
                         detectGroupType(data.quotas);
                         
-                        data.quotas.forEach(function(quota) {
+                        data.quotas.forEach(function(quota, index) {
                             var amount = formatMoney(quota.amount);
                             var debt = formatMoney(quota.debt);
-                            html += `<option value="${quota.number}" data-people='${JSON.stringify(quota.people)}' data-debt='${quota.debt}'>Cuota ${quota.number} - Monto Total: ${amount} - Saldo: ${debt} - Fecha: ${quota.date}</option>`;
+                            var isDisabled = index > 0 ? 'disabled' : '';
+                            var labelSuffix = index > 0 ? ' (Bloqueada: Pagar cuota anterior)' : '';
+                            html += `<option value="${quota.number}" data-people='${JSON.stringify(quota.people)}' data-debt='${quota.debt}' ${isDisabled}>Cuota ${quota.number} - Monto Total: ${amount} - Saldo: ${debt} - Fecha: ${quota.date}${labelSuffix}</option>`;
                         });
                         
                         $('#quota_id').html(html);
@@ -599,10 +601,12 @@
                         // Para individuales
                         currentGroupType = null;
                         $('#divGroupType').hide();
-                        data.quotas.forEach(function(quota) {
+                        data.quotas.forEach(function(quota, index) {
                             var amount = formatMoney(quota.amount);
                             var debt = formatMoney(quota.debt);
-                            html += `<option value="${quota.id}">Cuota ${quota.number} - Monto ${amount} - Saldo: ${debt} - Fecha: ${quota.date}</option>`;
+                            var isDisabled = index > 0 ? 'disabled' : '';
+                            var labelSuffix = index > 0 ? ' (Bloqueada: Pagar cuota anterior)' : '';
+                            html += `<option value="${quota.id}" ${isDisabled}>Cuota ${quota.number} - Monto ${amount} - Saldo: ${debt} - Fecha: ${quota.date}${labelSuffix}</option>`;
                         });
                         
                         $('#quota_id').html(html);
