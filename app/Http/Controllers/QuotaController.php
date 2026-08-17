@@ -187,19 +187,37 @@ class QuotaController extends Controller
             });
         
         if ($contract->client_type == 'Grupo') {
+            // Obtener la cuota pendiente más antigua para cada persona del grupo
+            $minPendingByPerson = [];
+            foreach ($quotas as $q) {
+                $personKey = $q->person_document ?: ($q->person_name ?: 'none');
+                if (!isset($minPendingByPerson[$personKey])) {
+                    $minPendingByPerson[$personKey] = (int) $q->number;
+                } else {
+                    $minPendingByPerson[$personKey] = min($minPendingByPerson[$personKey], (int) $q->number);
+                }
+            }
+
             // Agrupar cuotas por número para grupos
-            $groupedQuotas = $quotas->groupBy('number')->map(function($quotaGroup) {
+            $groupedQuotas = $quotas->groupBy('number')->map(function($quotaGroup) use ($minPendingByPerson) {
                 $firstQuota = $quotaGroup->first();
                 $totalAmount = $quotaGroup->sum('amount');
                 $totalDebt = $quotaGroup->sum('debt');
                 
-                $people = $quotaGroup->map(function($quota) {
+                $people = $quotaGroup->map(function($quota) use ($minPendingByPerson) {
+                    $personKey = $quota->person_document ?: ($quota->person_name ?: 'none');
+                    $minPending = $minPendingByPerson[$personKey] ?? (int) $quota->number;
+                    $isBlocked = ((int) $quota->number) > $minPending;
+
                     return [
                         'quota_id' => $quota->id,
+                        'quota_number' => (int) $quota->number,
                         'document' => $quota->person_document,
                         'name' => $quota->person_name,
                         'amount' => $quota->amount,
                         'debt' => $quota->debt,
+                        'min_pending_number' => $minPending,
+                        'is_blocked' => $isBlocked,
                     ];
                 })->values();
                 
