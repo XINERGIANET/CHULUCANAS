@@ -2205,6 +2205,7 @@ class WebController extends Controller
                     'person_name' => $quota ? $quota->person_name : null,
                     'amount' => $group->sum('amount'),
                     'quota_amount' => $quotaAmounts->get(($contract->id ?? 'none') . '_' . ($quota->number ?? 'none'))->total ?? 0,
+                    'pending_amount' => max(0, ($quotaAmounts->get(($contract->id ?? 'none') . '_' . ($quota->number ?? 'none'))->total ?? 0) - $group->sum('amount')),
                     'payment_method' => implode(' / ', $methods),
                     'quota_date' => $quota && $quota->date ? $quota->date->format('d/m/Y') : null,
                     'payment_date' => $paymentDate ? $paymentDate->format('d/m/Y') : null,
