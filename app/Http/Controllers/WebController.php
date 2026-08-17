@@ -2366,7 +2366,7 @@ class WebController extends Controller
         $quotaAmounts = $quotaContractIds->isEmpty()
             ? collect()
             : Quota::whereIn('contract_id', $quotaContractIds)
-                ->select('contract_id', 'number', DB::raw('SUM(amount) as total'))
+                ->select('contract_id', 'number', DB::raw('SUM(amount) as total'), DB::raw('SUM(debt) as debt_total'))
                 ->groupBy('contract_id', 'number')
                 ->get()
                 ->keyBy(fn($quota) => $quota->contract_id . '_' . $quota->number);
@@ -2405,7 +2405,7 @@ class WebController extends Controller
                     'person_name' => $quota ? $quota->person_name : null,
                     'amount' => $group->sum('amount'),
                     'quota_amount' => $quotaAmounts->get(($contract->id ?? 'none') . '_' . ($quota->number ?? 'none'))->total ?? 0,
-                    'pending_amount' => max(0, ($quotaAmounts->get(($contract->id ?? 'none') . '_' . ($quota->number ?? 'none'))->total ?? 0) - $group->sum('amount')),
+                    'pending_amount' => (float) ($quotaAmounts->get(($contract->id ?? 'none') . '_' . ($quota->number ?? 'none'))->debt_total ?? 0),
                     'payment_method' => implode(' / ', $methods),
                     'quota_date' => $quota && $quota->date ? $quota->date->format('d/m/Y') : null,
                     'payment_date' => $paymentDate ? \Carbon\Carbon::parse($paymentDate)->format('d/m/Y') : null,
