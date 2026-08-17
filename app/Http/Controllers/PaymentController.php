@@ -515,7 +515,24 @@ class PaymentController extends Controller
                 ]);
             }
 
+            // Validar que la persona no tenga cuotas anteriores pendientes
+            $hasPreviousPending = Quota::where('contract_id', $quota->contract_id)
+                ->where('paid', 0)
+                ->where('number', '<', $quota->number)
+                ->when($quota->person_document, function ($q, $doc) {
+                    return $q->where('person_document', $doc);
+                }, function ($q) use ($quota) {
+                    return $q->where('person_name', $quota->person_name);
+                })
+                ->exists();
 
+            if ($hasPreviousPending) {
+                $personLabel = $quota->person_name ?: 'El cliente';
+                return response()->json([
+                    'status' => false,
+                    'error' => "No se puede registrar el pago de {$personLabel} para la Cuota {$quota->number} porque tiene cuotas anteriores pendientes."
+                ]);
+            }
 
             $totalAmount += $paymentData['amount'];
         }

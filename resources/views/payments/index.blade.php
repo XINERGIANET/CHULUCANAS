@@ -576,16 +576,33 @@
                         // Para grupos: determinar el tipo
                         detectGroupType(data.quotas);
                         
+                        var firstAvailableIndex = -1;
+
                         data.quotas.forEach(function(quota, index) {
                             var amount = formatMoney(quota.amount);
                             var debt = formatMoney(quota.debt);
-                            html += `<option value="${quota.number}" data-people='${JSON.stringify(quota.people)}' data-debt='${quota.debt}'>Cuota ${quota.number} - Monto Total: ${amount} - Saldo: ${debt} - Fecha: ${quota.date}</option>`;
+                            
+                            // Verificar si todos los integrantes de esta cuota están bloqueados
+                            var allBlocked = quota.people && quota.people.length > 0 && quota.people.every(function(p) {
+                                return p.is_blocked;
+                            });
+
+                            if (!allBlocked && firstAvailableIndex === -1) {
+                                firstAvailableIndex = index;
+                            }
+
+                            var isDisabled = allBlocked ? 'disabled' : '';
+                            var blockedSuffix = allBlocked ? ' (Bloqueada: Todos deben cuota anterior)' : '';
+
+                            html += `<option value="${quota.number}" ${isDisabled} data-people='${JSON.stringify(quota.people)}' data-debt='${quota.debt}'>Cuota ${quota.number} - Monto Total: ${amount} - Saldo: ${debt} - Fecha: ${quota.date}${blockedSuffix}</option>`;
                         });
                         
                         $('#quota_id').html(html);
                         
                         if (data.quotas.length > 0) {
-                            handleQuotaSelection(data.quotas[0].people, data.quotas[0].debt);
+                            var selectedIdx = firstAvailableIndex !== -1 ? firstAvailableIndex : 0;
+                            $('#quota_id').val(data.quotas[selectedIdx].number);
+                            handleQuotaSelection(data.quotas[selectedIdx].people, data.quotas[selectedIdx].debt);
                         }
                         
                         $('#quota_id').off('change').on('change', function() {
@@ -681,21 +698,32 @@
 
         function showSeparatedGroupPeople(people) {
             // GRUPO 1: Cuotas separadas - mostrar input de monto para cada persona
-            var html = '<div class="table-responsive"><table class="table table-bordered">';
-            html += '<thead><tr><th>Seleccionar</th><th>Persona</th><th>Deuda</th><th>Monto a pagar</th></tr></thead><tbody>';
+            var html = '<div class="table-responsive"><table class="table table-bordered align-middle">';
+            html += '<thead class="table-light"><tr><th class="text-center" style="width: 80px;">Seleccionar</th><th>Persona</th><th>Deuda</th><th>Monto a pagar</th></tr></thead><tbody>';
             
             if (people && people.length > 0) {
                 people.forEach(function(person) {
+                    var isBlocked = person.is_blocked || false;
+                    var minPending = person.min_pending_number || person.quota_number;
+                    var blockedLabel = isBlocked 
+                        ? `<div class="text-danger small mt-1"><i class="fas fa-lock me-1"></i>Bloqueada: Debe pagar primero la Cuota ${minPending}</div>` 
+                        : '';
+                    var rowClass = isBlocked ? 'table-light opacity-75' : '';
+
                     html += `
-                        <tr>
+                        <tr class="${rowClass}">
                             <td class="text-center">
                                 <input class="form-check-input person-checkbox-separated" type="checkbox" 
                                        data-quota-id="${person.quota_id}" 
                                        data-debt="${person.debt}"
-                                       data-person='${JSON.stringify(person)}'>
+                                       data-person='${JSON.stringify(person)}'
+                                       ${isBlocked ? 'disabled title="Debe pagar la cuota anterior"' : ''}>
                             </td>
-                            <td>${person.name} (${person.document})</td>
-                            <td>S/${person.debt}</td>
+                            <td>
+                                <strong>${person.name}</strong> <span class="text-muted">(${person.document})</span>
+                                ${blockedLabel}
+                            </td>
+                            <td><span class="badge bg-secondary-subtle text-secondary fs-6">S/${person.debt}</span></td>
                             <td>
                                 <input type="number" class="form-control person-amount" 
                                        data-quota-id="${person.quota_id}"
