@@ -138,6 +138,12 @@
                         @endif
                         <div class="col-12 col-md-6 col-lg-2">
                             <div class="mb-0">
+                                <label class="form-label">Fecha desde</label>
+                                <input type="date" class="form-control" name="start_date_2" value="{{ request()->start_date_2 }}">
+                            </div>
+                        </div>
+                        <div class="col-12 col-md-6 col-lg-2">
+                            <div class="mb-0">
                                 <label class="form-label">Fecha hasta</label>
                                 <input type="date" class="form-control" name="end_date_2" value="{{ request()->end_date_2 }}">
                             </div>

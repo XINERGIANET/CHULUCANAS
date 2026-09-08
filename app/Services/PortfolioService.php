@@ -574,6 +574,8 @@ class PortfolioService
 
     private function newGroupsQuery(string $asOf, array $filters, $user, ?string $startDate = null)
     {
+        $effectiveStartDate = $startDate ?: Carbon::parse($asOf)->startOfMonth()->toDateString();
+
         if (Schema::hasTable('groups')) {
             $hasGroupContracts = DB::table('contracts')
                 ->where('deleted', 0)
@@ -586,7 +588,7 @@ class PortfolioService
                     ->leftJoin('users', 'users.id', '=', 'contracts.seller_id')
                     ->where('contracts.deleted', 0)
                     ->whereRaw('DATE(groups.created_at) <= ?', [$asOf])
-                    ->when($startDate, fn($q) => $q->whereRaw('DATE(groups.created_at) >= ?', [$startDate]))
+                    ->when($effectiveStartDate, fn($q) => $q->whereRaw('DATE(groups.created_at) >= ?', [$effectiveStartDate]))
                     ->when($user && $user->hasRole('seller'), fn($q) => $q->where('contracts.seller_id', $user->id))
                     ->when($user && $user->hasRole('credit_manager'), fn($q) => $q->where('users.credit_manager_id', $user->id))
                     ->when($filters['credit_manager_id'] ?? null, fn($q, $id) => $q->where('users.credit_manager_id', $id))
@@ -620,7 +622,7 @@ class PortfolioService
 
         return DB::query()->fromSub($sub, 'g')
             ->whereRaw('DATE(g.initial_date) <= ?', [$asOf])
-            ->when($startDate, fn($q) => $q->whereRaw('DATE(g.initial_date) >= ?', [$startDate]))
+            ->when($effectiveStartDate, fn($q) => $q->whereRaw('DATE(g.initial_date) >= ?', [$effectiveStartDate]))
             ->selectRaw("
                 'GRP-LEGACY' as codigo_grupo,
                 g.group_name,
