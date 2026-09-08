@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Contract;
+use App\Models\Group;
 use App\Models\Quota;
 use App\Models\User;
 
@@ -13,7 +14,7 @@ class ClientController extends Controller
     {
         $user = auth()->user();
         $sellers = User::seller()->where('state', 0)->active()->get();
-        $clients = Contract::active()->when($user->hasRole('seller'), function ($query) use ($user) {
+        $clients = Contract::with('group')->active()->when($user->hasRole('seller'), function ($query) use ($user) {
             return $query->where('seller_id', $user->id);
         })->when($request->name, function($query, $name){
             return $query->where(function($query) use ($name){
@@ -230,5 +231,57 @@ class ClientController extends Controller
                 ->orWhere('document', 'like', '%' . $request->q . '%');
         })->where('client_type', 'Personal')->orderBy('name')->get();
         return response()->json(['items' => $contracts]);
+    }
+
+    public function updateGroup(Request $request)
+    {
+        $request->validate([
+            'group_name' => 'required|string',
+            'codigo_grupo' => 'required|string',
+        ]);
+
+        $groupName = $request->group_name;
+        $newCode = trim($request->codigo_grupo);
+        $newGroupName = $request->new_group_name ? trim($request->new_group_name) : $groupName;
+        $contractId = $request->contract_id;
+
+        $contract = Contract::find($contractId);
+        if (!$contract) {
+            return response()->json(['status' => false, 'error' => 'Contrato no encontrado'], 404);
+        }
+
+        $existingGroupWithCode = Group::where('codigo_grupo', $newCode)->first();
+
+        if ($contract->group_id) {
+            $group = Group::find($contract->group_id);
+            if ($group) {
+                if ($existingGroupWithCode && $existingGroupWithCode->id !== $group->id) {
+                    return response()->json(['status' => false, 'error' => 'El código de grupo "'.$newCode.'" ya pertenece a otro grupo ("'.$existingGroupWithCode->name.'")'], 422);
+                }
+                $group->codigo_grupo = $newCode;
+                $group->name = $newGroupName;
+                $group->save();
+            }
+        } else {
+            if ($existingGroupWithCode) {
+                $group = $existingGroupWithCode;
+            } else {
+                $group = Group::create([
+                    'codigo_grupo' => $newCode,
+                    'name' => $newGroupName,
+                ]);
+            }
+        }
+
+        Contract::where('group_name', $groupName)->update([
+            'group_id' => $group->id,
+            'group_name' => $newGroupName,
+        ]);
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Código de grupo actualizado correctamente',
+            'codigo_grupo' => $group->codigo_grupo,
+        ]);
     }
 }
