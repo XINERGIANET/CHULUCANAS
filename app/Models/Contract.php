@@ -14,6 +14,7 @@ class Contract extends Model
         'number_pagare',
         'district_id',
         'client_type',
+        'group_id',
         'group_name',
         'people',
         'document',
@@ -80,6 +81,10 @@ class Contract extends Model
 
     public function seller(){
         return $this->belongsTo(User::class);
+    }
+
+    public function group(){
+        return $this->belongsTo(Group::class, 'group_id');
     }
 
     public function quotas(){
