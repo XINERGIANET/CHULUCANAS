@@ -5,6 +5,7 @@ namespace App\Services;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class PortfolioService
 {
@@ -15,6 +16,7 @@ class PortfolioService
         $filters = [
             'credit_manager_id' => $request->credit_manager_id,
             'seller_id' => $request->seller_id_2,
+            'start_date' => $request->start_date_2 ?: null,
         ];
 
         $snapshot = $this->snapshot($milestone, $filters, $user);
@@ -45,6 +47,7 @@ class PortfolioService
             'evolution_increments',
             'evolution_reductions',
             'evolution_final',
+            'new_groups',
         ];
 
         if (!in_array($card, $allowed, true)) {
@@ -59,6 +62,7 @@ class PortfolioService
         $filters = [
             'credit_manager_id' => $request->credit_manager_id,
             'seller_id' => $request->seller_id_2,
+            'start_date' => $request->start_date_2 ?: null,
         ];
 
         if (in_array($card, ['evolution_initial', 'evolution_increments', 'evolution_reductions', 'evolution_final'], true)) {
@@ -102,6 +106,18 @@ class PortfolioService
                 'type' => 'evolution',
                 'total' => $items->count(),
                 'items' => $items->values(),
+            ];
+        }
+
+        if ($card === 'new_groups') {
+            $startDate = $filters['start_date'] ?? null;
+            $items = $this->newGroupsQuery($asOf, $filters, $user, $startDate)->get();
+
+            return [
+                'status' => true,
+                'type' => 'groups',
+                'total' => $items->count(),
+                'items' => $items,
             ];
         }
 
@@ -260,9 +276,13 @@ class PortfolioService
                 COUNT(DISTINCT CASE WHEN c.arrears_over_120 <= 0.009 THEN c.client_key END) as active_clients,
                 COUNT(DISTINCT CASE WHEN c.arrears_over_120 > 0.009 THEN c.client_key END) as clients_over_120,
                 COUNT(DISTINCT CASE WHEN c.arrears_over_120 <= 0.009 AND c.client_type = 'Personal' THEN c.client_key END) as individual_clients,
-                COUNT(DISTINCT CASE WHEN c.arrears_over_120 <= 0.009 AND c.client_type = 'Grupo' THEN c.client_key END) as group_clients
+                COUNT(DISTINCT CASE WHEN c.arrears_over_120 <= 0.009 AND c.client_type = 'Grupo' THEN c.client_key END) as group_clients,
+                COUNT(DISTINCT CASE WHEN c.arrears_over_120 <= 0.009 AND c.client_type = 'Grupo' THEN c.group_identifier END) as active_groups_count
             ")
             ->first();
+
+        $startDate = $filters['start_date'] ?? null;
+        $newGroupsCount = $this->getNewGroupsCount($asOf, $filters, $user, $startDate);
 
         $disbursed = $this->contractsQuery($asOf, $filters, $user)
             ->sum('contracts.requested_amount');
@@ -295,6 +315,8 @@ class PortfolioService
             'clients_over_120' => (int) ($clientTotals->clients_over_120 ?? 0),
             'individual_clients' => (int) ($clientTotals->individual_clients ?? 0),
             'group_clients' => (int) ($clientTotals->group_clients ?? 0),
+            'active_groups_count' => (int) ($clientTotals->active_groups_count ?? 0),
+            'new_groups' => $newGroupsCount,
             'finished_clients_with_arrears_1_120' => $finishedWithArrears,
             'disbursed_amount' => round((float) $disbursed, 2),
             'pending_quotas_count' => (int) ((clone $rowsAfterMilestone)
@@ -412,7 +434,9 @@ class PortfolioService
                 'quotas.person_document',
                 'quotas.amount',
                 'quotas.date',
-                'contracts.client_type'
+                'contracts.client_type',
+                'contracts.group_id',
+                'contracts.group_name'
             )
             ->selectRaw('
                 quotas.id as quota_id,
@@ -421,6 +445,8 @@ class PortfolioService
                 quotas.person_name,
                 quotas.person_document,
                 contracts.client_type,
+                contracts.group_id,
+                contracts.group_name,
                 quotas.amount,
                 quotas.date as quota_date,
                 COALESCE(SUM(payments.amount), 0) as paid_to_cutoff
@@ -515,6 +541,8 @@ class PortfolioService
             ->groupBy(
                 'q.contract_id',
                 'q.client_type',
+                'q.group_id',
+                'q.group_name',
                 DB::raw("
                     CASE
                         WHEN q.client_type = 'Personal' THEN CONCAT('P|', q.contract_id)
@@ -526,12 +554,81 @@ class PortfolioService
                 q.contract_id,
                 q.client_type,
                 CASE
+                    WHEN q.group_id IS NOT NULL THEN CONCAT('GID|', q.group_id)
+                    WHEN NULLIF(TRIM(q.group_name), '') IS NOT NULL THEN CONCAT('GNAME|', LOWER(TRIM(q.group_name)))
+                    ELSE CONCAT('GCONTRACT|', q.contract_id)
+                END as group_identifier,
+                CASE
                     WHEN q.client_type = 'Personal' THEN CONCAT('P|', q.contract_id)
                     ELSE CONCAT('G|', q.contract_id, '|', COALESCE(NULLIF(TRIM(q.person_document), ''), NULLIF(TRIM(q.person_name), ''), 'SIN_PERSONA'))
                 END as client_key,
                 SUM(q.amount - q.paid_to_cutoff) as balance,
                 SUM(CASE WHEN DATEDIFF(?, q.quota_date) > 120 THEN q.amount - q.paid_to_cutoff ELSE 0 END) as arrears_over_120
             ", [$asOf]);
+    }
+
+    private function getNewGroupsCount(string $asOf, array $filters, $user, ?string $startDate = null): int
+    {
+        return $this->newGroupsQuery($asOf, $filters, $user, $startDate)->get()->count();
+    }
+
+    private function newGroupsQuery(string $asOf, array $filters, $user, ?string $startDate = null)
+    {
+        $effectiveStartDate = $startDate ?: Carbon::parse($asOf)->startOfMonth()->toDateString();
+
+        if (Schema::hasTable('groups')) {
+            $hasGroupContracts = DB::table('contracts')
+                ->where('deleted', 0)
+                ->whereNotNull('group_id')
+                ->exists();
+
+            if ($hasGroupContracts) {
+                return DB::table('groups')
+                    ->join('contracts', 'contracts.group_id', '=', 'groups.id')
+                    ->leftJoin('users', 'users.id', '=', 'contracts.seller_id')
+                    ->where('contracts.deleted', 0)
+                    ->whereRaw('DATE(groups.created_at) <= ?', [$asOf])
+                    ->when($effectiveStartDate, fn($q) => $q->whereRaw('DATE(groups.created_at) >= ?', [$effectiveStartDate]))
+                    ->when($user && $user->hasRole('seller'), fn($q) => $q->where('contracts.seller_id', $user->id))
+                    ->when($user && $user->hasRole('credit_manager'), fn($q) => $q->where('users.credit_manager_id', $user->id))
+                    ->when($filters['credit_manager_id'] ?? null, fn($q, $id) => $q->where('users.credit_manager_id', $id))
+                    ->when($filters['seller_id'] ?? null, fn($q, $id) => $q->where('contracts.seller_id', $id))
+                    ->groupBy('groups.id', 'groups.codigo_grupo', 'groups.name', 'groups.created_at', 'users.name')
+                    ->selectRaw("
+                        groups.codigo_grupo,
+                        groups.name as group_name,
+                        users.name as seller_name,
+                        DATE_FORMAT(groups.created_at, '%d/%m/%Y') as created_at
+                    ");
+            }
+        }
+
+        $sub = DB::table('contracts')
+            ->leftJoin('users', 'users.id', '=', 'contracts.seller_id')
+            ->where('contracts.deleted', 0)
+            ->where('contracts.client_type', 'Grupo')
+            ->whereNotNull('contracts.group_name')
+            ->whereRaw("TRIM(contracts.group_name) != ''")
+            ->when($user && $user->hasRole('seller'), fn($q) => $q->where('contracts.seller_id', $user->id))
+            ->when($user && $user->hasRole('credit_manager'), fn($q) => $q->where('users.credit_manager_id', $user->id))
+            ->when($filters['credit_manager_id'] ?? null, fn($q, $id) => $q->where('users.credit_manager_id', $id))
+            ->when($filters['seller_id'] ?? null, fn($q, $id) => $q->where('contracts.seller_id', $id))
+            ->groupBy(DB::raw("LOWER(TRIM(contracts.group_name))"))
+            ->selectRaw("
+                MIN(contracts.group_name) as group_name,
+                MIN(contracts.date) as initial_date,
+                MAX(users.name) as seller_name
+            ");
+
+        return DB::query()->fromSub($sub, 'g')
+            ->whereRaw('DATE(g.initial_date) <= ?', [$asOf])
+            ->when($effectiveStartDate, fn($q) => $q->whereRaw('DATE(g.initial_date) >= ?', [$effectiveStartDate]))
+            ->selectRaw("
+                'GRP-LEGACY' as codigo_grupo,
+                g.group_name,
+                g.seller_name,
+                DATE_FORMAT(g.initial_date, '%d/%m/%Y') as created_at
+            ");
     }
 
     private function contractsQuery(string $asOf, array $filters, $user)

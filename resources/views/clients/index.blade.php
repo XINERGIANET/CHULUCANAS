@@ -90,6 +90,9 @@
                                             <br><small class="text-muted">DNI: {!! $highlight($client->document) !!}</small>
                                         @endif
                                     @else
+                                        @if ($client->group && $client->group->codigo_grupo)
+                                            <span class="badge bg-light-primary text-primary fw-bold mb-1" style="font-size: 0.75rem;">{{ $client->group->codigo_grupo }}</span><br>
+                                        @endif
                                         <strong>{!! $highlight($client->group_name) !!}</strong>
                                         <div class="text-muted small mt-1" style="max-height: 150px; overflow-y: auto;">
                                             @php
@@ -127,6 +130,15 @@
 												title="Contratos">
 												<i class="ti ti-list icon"></i>
 											</button>
+                                            @if ($client->client_type == 'Grupo')
+                                                <button class="btn btn-warning btn-icon btn-edit-group"
+                                                    data-group-name="{{ $client->group_name }}"
+                                                    data-codigo-grupo="{{ $client->group->codigo_grupo ?? '' }}"
+                                                    data-contract-id="{{ $client->id }}"
+                                                    title="Editar Código de Grupo">
+                                                    <i class="ti ti-id icon"></i>
+                                                </button>
+                                            @endif
 										</div>
                                     </div>
                                 </td>
@@ -267,6 +279,37 @@
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
                         <button type="submit" class="btn btn-primary" id="btn-save-person">Guardar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="modal modal-blur fade" id="editGroupModal" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <form id="editGroupForm">
+                    @csrf
+                    @method('PUT')
+                    <input type="hidden" id="edit_group_contract_id" name="contract_id">
+                    <input type="hidden" id="edit_group_original_name" name="group_name">
+                    <div class="modal-header">
+                        <h5 class="modal-title"><i class="ti ti-id icon me-1"></i> Editar Grupo / Código Único</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Nombre del Grupo</label>
+                            <input type="text" class="form-control" id="edit_group_name_input" name="new_group_name" placeholder="Nombre del grupo">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label font-weight-bold">Código Único del Grupo (<code>codigo_grupo</code>)</label>
+                            <input type="text" class="form-control fw-bold text-primary" id="edit_codigo_grupo_input" name="codigo_grupo" placeholder="Ej: GRP-0001" required>
+                            <small class="text-muted">Este código mantendrá la identidad inmutable del grupo en todas sus renovaciones.</small>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary" id="btn-save-group-code">Guardar Cambios</button>
                     </div>
                 </form>
             </div>
@@ -457,6 +500,56 @@
 					console.log(xhr.responseJSON);
                     ToastError.fire({
                         text: 'Ocurrió un error al guardar'
+                    });
+                }
+            });
+        });
+
+        $(document).on('click', '.btn-edit-group', function() {
+            var groupName = $(this).data('group-name');
+            var codigoGrupo = $(this).data('codigo-grupo');
+            var contractId = $(this).data('contract-id');
+
+            $('#edit_group_contract_id').val(contractId);
+            $('#edit_group_original_name').val(groupName);
+            $('#edit_group_name_input').val(groupName);
+            $('#edit_codigo_grupo_input').val(codigoGrupo);
+
+            $('#editGroupModal').modal('show');
+        });
+
+        $('#editGroupForm').on('submit', function(e) {
+            e.preventDefault();
+
+            $.ajax({
+                url: '{{ route('clients.update-group') }}',
+                method: 'POST',
+                data: {
+                    _token: '{{ csrf_token() }}',
+                    _method: 'PUT',
+                    contract_id: $('#edit_group_contract_id').val(),
+                    group_name: $('#edit_group_original_name').val(),
+                    new_group_name: $('#edit_group_name_input').val(),
+                    codigo_grupo: $('#edit_codigo_grupo_input').val()
+                },
+                success: function(res) {
+                    if (res.status) {
+                        $('#editGroupModal').modal('hide');
+                        ToastMessage.fire({
+                            text: res.message
+                        }).then(() => {
+                            window.location.reload();
+                        });
+                    } else {
+                        ToastError.fire({
+                            text: res.error || 'Error al actualizar'
+                        });
+                    }
+                },
+                error: function(xhr) {
+                    var err = (xhr.responseJSON && xhr.responseJSON.error) ? xhr.responseJSON.error : 'Ocurrió un error al actualizar';
+                    ToastError.fire({
+                        text: err
                     });
                 }
             });

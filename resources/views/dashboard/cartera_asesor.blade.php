@@ -138,6 +138,12 @@
                         @endif
                         <div class="col-12 col-md-6 col-lg-2">
                             <div class="mb-0">
+                                <label class="form-label">Fecha desde</label>
+                                <input type="date" class="form-control" name="start_date_2" value="{{ request()->start_date_2 }}">
+                            </div>
+                        </div>
+                        <div class="col-12 col-md-6 col-lg-2">
+                            <div class="mb-0">
                                 <label class="form-label">Fecha hasta</label>
                                 <input type="date" class="form-control" name="end_date_2" value="{{ request()->end_date_2 }}">
                             </div>
@@ -233,10 +239,24 @@
                     </div>
                     <div class="col-6 col-md-4 col-xl-2">
                         <div class="card portfolio-metric-card js-portfolio-card h-100 mb-0" role="button" tabindex="0"
-                            data-card="individual_group_clients" data-title="Detalle de clientes individuales y grupales">
+                            data-card="individual_group_clients" data-title="Detalle de clientes individuales y grupales"
+                            data-bs-toggle="tooltip" data-bs-placement="top"
+                            title="{{ number_format($cutoff['group_clients'] ?? 0) }} integrantes en {{ number_format($cutoff['active_groups_count'] ?? 0) }} grupos activos">
                             <div class="card-body text-center">
-                                <h5 class="card-title">Clientes individuales / grupales</h5>
+                                <h5 class="card-title">Clientes ind. / grupales</h5>
                                 <span class="d-block fs-1 text-center fw-semibold metric-value"><i class="bi bi-person-circle metric-icon"></i>{{ number_format($cutoff['individual_clients'] ?? 0) }} / {{ number_format($cutoff['group_clients'] ?? 0) }}</span>
+                                <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">
+                                    ({{ number_format($cutoff['active_groups_count'] ?? 0) }} grupos en total)
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-4 col-xl-2">
+                        <div class="card portfolio-metric-card js-portfolio-card h-100 mb-0" role="button" tabindex="0"
+                            data-card="new_groups" data-title="Detalle de grupos nuevos registrados">
+                            <div class="card-body text-center">
+                                <h5 class="card-title">Grupos Nuevos</h5>
+                                <span class="d-block fs-1 text-center fw-semibold metric-value"><i class="bi bi-people-fill metric-icon"></i>{{ number_format($cutoff['new_groups'] ?? 0) }}</span>
                             </div>
                         </div>
                     </div>
@@ -780,6 +800,30 @@
                 $('#portfolioCardTableBody').html(rows || emptyRow(5));
             }
 
+            function renderGroups(items) {
+                $('#portfolioCardTableHead').html(`
+                    <tr>
+                        <th>Código Grupo</th>
+                        <th>Nombre del Grupo</th>
+                        <th>Asesor Comercial</th>
+                        <th>Fecha Registro</th>
+                    </tr>
+                `);
+
+                var rows = (items || []).map(function(item) {
+                    return `
+                        <tr>
+                            <td><span class="badge bg-light-primary text-primary fw-bold">${escapeHtml(item.codigo_grupo || '-')}</span></td>
+                            <td><strong>${escapeHtml(item.group_name || item.name || '-')}</strong></td>
+                            <td>${escapeHtml(item.seller_name || '-')}</td>
+                            <td>${escapeHtml(item.created_at || item.date || '-')}</td>
+                        </tr>
+                    `;
+                }).join('');
+
+                $('#portfolioCardTableBody').html(rows || emptyRow(4));
+            }
+
             function renderSummary(items) {
                 $('#portfolioCardTableHead').html(`
                     <tr>
@@ -815,6 +859,7 @@
                         card: card,
                         credit_manager_id: $('[name="credit_manager_id"]').val() || '',
                         seller_id_2: $('[name="seller_id_2"]').val() || '',
+                        start_date_2: $('[name="start_date_2"]').val() || $('[name="start_date_1"]').val() || '',
                         end_date_2: $('[name="end_date_2"]').val() || ''
                     },
                     success: function(data) {
@@ -833,6 +878,8 @@
                             renderContracts(data.items || []);
                         } else if (data.type === 'evolution') {
                             renderEvolution(data.items || []);
+                        } else if (data.type === 'groups') {
+                            renderGroups(data.items || []);
                         } else {
                             renderSummary(data.items || []);
                         }
