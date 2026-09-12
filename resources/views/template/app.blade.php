@@ -104,6 +104,18 @@
                                 </a>
                             </li>
                         @endif
+                        @if (auth()->user()->hasRole('admin') || auth()->user()->hasRole('operations'))
+                            <li class="nav-item">
+                                <a class="nav-link" href="{{ route('employees.index') }}">
+                                    <span class="nav-link-icon d-md-none d-lg-inline-block">
+                                        <i class="ti ti-calendar-event icon"></i>
+                                    </span>
+                                    <span class="nav-link-title">
+                                        Recursos Humanos
+                                    </span>
+                                </a>
+                            </li>
+                        @endif
                         <li class="nav-item">
                             <a class="nav-link" href="{{ route('clients.index') }}">
                                 <span class="nav-link-icon d-md-none d-lg-inline-block">

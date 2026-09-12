@@ -14,6 +14,8 @@ use App\Http\Controllers\TransferController;
 use App\Http\Controllers\InterestController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\DistrictController;
+use App\Http\Controllers\EmployeeController;
+use App\Http\Controllers\EmployeeVacationController;
 
 
 Route::get('optimize', function () {
@@ -84,6 +86,10 @@ Route::middleware('auth')->group(function () {
 	Route::get('expenses/index_cash', [ExpenseController::class, 'index_cash'])->name('expenses.index_cash');
 	Route::get('expenses/excel_cash', [ExpenseController::class, 'excel_cash'])->name('expenses.excel_cash');
 	Route::resource('expenses', ExpenseController::class);
+
+	Route::get('employees/{id}/details', [EmployeeController::class, 'details'])->name('employees.details');
+	Route::resource('employees', EmployeeController::class);
+	Route::resource('employee-vacations', EmployeeVacationController::class);
 
 	Route::middleware('role:admin,credit_manager')->group(function () {
 		Route::put('sellers/drop/{id}', [SellerController::class, 'drop'])->name('sellers.drop');
